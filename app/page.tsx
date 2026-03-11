@@ -1,65 +1,103 @@
-import Image from "next/image";
+import Link from "next/link";
+const quickSignals = [
+  { label: "Rates", value: "Watching Fed path" },
+  { label: "Liquidity", value: "Conditions stable" },
+  { label: "Credit", value: "Spreads mixed" },
+];
+const highlights = [
+  {
+    title: "Signal Engine",
+    description: "Track macro, liquidity, and risk conditions in one place.",
+    href: "/signal-engine",
+  },
+  {
+    title: "Command Center",
+    description: "Central dashboard for Alora’s market workflow and decisions.",
+    href: "/command-center",
+  },
+  {
+    title: "Ask Alora",
+    description: "Quick intervention chat for questions, analysis, and actions.",
+    href: "/ask-alora",
+  },
+];
+  export default function Home() {
+return (
+<main className="min-h-screen bg-slate-950 text-slate-50">
+<div className="mx-auto flex max-w-6xl flex-col gap-10 px-6 py-16">
+{/* Hero */}
+<section className="space-y-6">
+<p className="text-xs uppercase tracking-[0.5em] text-slate-500">System Capital</p>
+<h1 className="text-4xl font-semibold text-white sm:text-5xl">
+Macro Command Center for Intelligent Capital
+</h1>
+<p className="max-w-3xl text-lg text-slate-300">
+Alora ingests geopolitics, central banks, liquidity, credit, and energy to produce an
+always-on risk posture. Navigate markets with a living signal stack instead of static
+research decks.
+</p>
+<div className="flex flex-wrap gap-4">
+<Link
+href="/command-center"
+className="rounded-2xl border border-white/10 bg-white/5 px-6 py-3 text-base font-semibold text-white transition hover:border-emerald-400/50 hover:bg-emerald-500/20"
+>
+Enter Command Center
+</Link>
+<Link
+href="/command-center#ask-alora"
+className="rounded-2xl border border-white/5 px-6 py-3 text-base text-slate-200 transition hover:border-white/30"
+>
+Ask Alora
+</Link>
+</div>
+</section>
 
-export default function Home() {
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
-  );
+{/* Quick signals */}
+<section className="grid gap-4 sm:grid-cols-3">
+{quickSignals.map((item) => (
+<div
+key={item.label}
+className="rounded-2xl border border-white/5 bg-slate-900/70 p-4 text-sm text-slate-300"
+>
+<p className="text-xs uppercase tracking-wide text-slate-500">{item.label}</p>
+<p className={`mt-2 text-2xl font-semibold ${item.tone ?? 'text-white'}`}>{item.value}</p>
+</div>
+))}
+</section>
+
+{/* Highlights */}
+<section className="rounded-3xl border border-white/5 bg-slate-900/60 p-6">
+<div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+<div>
+<p className="text-sm uppercase tracking-[0.3em] text-slate-500">Capabilities</p>
+<h2 className="text-3xl font-semibold text-white">Glass Dashboard Modules</h2>
+<p className="mt-2 max-w-2xl text-slate-300">
+Every module sits on a glass panel with dark mode by default. The same components
+power `/command-center`, so this landing shows exactly what you get inside.
+</p>
+</div>
+<Link
+href="/command-center"
+className="self-start rounded-full border border-emerald-400/40 px-4 py-2 text-sm font-medium text-emerald-200 transition hover:bg-emerald-500/10"
+>
+View Dashboard
+</Link>
+</div>
+
+<div className="mt-8 grid gap-4 md:grid-cols-3">
+{highlights.map((item) => (
+<Link
+key={item.title}
+href={item.href}
+className="rounded-2xl border border-white/5 bg-slate-950/40 p-5 transition hover:border-emerald-400/30"
+>
+<p className="text-sm uppercase tracking-wide text-slate-500">{item.title}</p>
+<p className="mt-3 text-base text-slate-200">{item.description}</p>
+</Link>
+))}
+</div>
+</section>
+</div>
+</main>
+);
 }

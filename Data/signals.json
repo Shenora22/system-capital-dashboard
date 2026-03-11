@@ -1,0 +1,30 @@
+{
+  "currentSignal": {
+    "type": "Risk-Off",
+    "confidence": 85,
+    "drivers": [
+      "Geopolitical escalation",
+      "Credit stress",
+      "Energy volatility"
+    ],
+    "insight": "Three central banks moved within 48 hours. That’s not coincidence — that’s coordination."
+  },
+  "systems": [
+    { "name": "Geopolitics", "status": "Pressure" },
+    { "name": "Central Banks", "status": "Neutral" },
+    { "name": "Liquidity", "status": "Tightening" },
+    { "name": "Credit Markets", "status": "Stress" }
+  ],
+  "feed": [
+    {
+      "category": "Geopolitical",
+      "time": "04:17 UTC",
+      "headline": "Rare earth export restrictions expand across key compounds."
+    },
+    {
+      "category": "Monetary Policy",
+      "time": "06:02 UTC",
+      "headline": "Fed officials signal extended pause despite cooling inflation."
+    }
+  ]
+}

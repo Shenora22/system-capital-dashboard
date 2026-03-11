@@ -58,9 +58,12 @@ Ask Alora
 <div
 key={item.label}
 className="rounded-2xl border border-white/5 bg-slate-900/70 p-4 text-sm text-slate-300"
->
-<p className="text-xs uppercase tracking-wide text-slate-500">{item.label}</p>
-<p className={`mt-2 text-2xl font-semibold ${item.tone ?? 'text-white'}`}>{item.value}</p>
+>      <p className="text-xs uppercase tracking-wide text-slate-500">
+        {item.label}
+      </p>
+      <p className="mt-2 text-2xl font-semibold">
+        {item.value}
+      </p>
 </div>
 ))}
 </section>

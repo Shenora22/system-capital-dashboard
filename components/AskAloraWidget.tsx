@@ -1,7 +1,7 @@
 'use client';
 
 import { FormEvent, useMemo, useState } from "react";
-import { agentActivityLog, agentRoster, signalFeed, workflowStatuses } from "@/data/shenora";
+import { agentActivityLog, agentRoster, signalFeed, workflowStatuses } from "@/Data/shenora";
 
 const seedMessages = [
   {

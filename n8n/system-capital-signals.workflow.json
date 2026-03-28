@@ -1,0 +1,45 @@
+{
+  "name": "System Capital Signals",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "system-capital-signals",
+        "responseMode": "lastNode",
+        "responseData": "allEntries",
+        "responseContentType": "application/json"
+      },
+      "id": "Webhook",
+      "name": "Signals Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [280, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "const now = new Date().toISOString();\nreturn [{ json: {\n  regime: {\n    label: 'Risk-On',\n    confidence: 78,\n    horizon: 'Next 72 Hours',\n    timestamp: now,\n    context: 'Liquidity impulse plus tighter credit spreads keep upside biased.',\n    lastShift: {\n      timestamp: now,\n      from: 'Neutral',\n      to: 'Risk-On',\n      reason: 'Liquidity pulse flipped positive after UST buybacks.'\n    }\n  },\n  regimeBreakdown: [\n    { factor: 'Liquidity', posture: 'Risk-On', confidence: 0.82, pressure: '+', note: 'Buybacks oversubscribed; ON RRP balances falling.' },\n    { factor: 'Credit', posture: 'Risk-On', confidence: 0.74, pressure: '+', note: 'IG/HY spreads grind tighter.' },\n    { factor: 'Energy', posture: 'Watch', confidence: 0.58, pressure: '-', note: 'Brent volatility remains the swing risk.' }\n  ],\n  signals: [\n    { id: 'liq-170000', category: 'Liquidity', headline: 'Treasury buybacks oversubscribed', explanation: 'Dealers signal front-end relief; ON RRP usage falls another $18B.', confidence: 82, timestamp: now },\n    { id: 'eng-170001', category: 'Energy', headline: 'Refinery restarts flatten Brent curve', explanation: 'Curve compression removes upside risk unless outages reappear.', confidence: 63, timestamp: now },\n    { id: 'cred-170002', category: 'Credit', headline: 'HY ETF flows flip positive', explanation: 'First positive print in three sessions signals improving sentiment.', confidence: 70, timestamp: now }\n  ],\n  history: [\n    { id: 'hist-1', timestamp: now, regime: 'Risk-On', confidence: 77, delta: '+3', note: 'Liquidity impulse upgrade after buyback auction.' },\n    { id: 'hist-2', timestamp: now, regime: 'Neutral', confidence: 70, delta: '-4', note: 'Energy spike forced downgrade.' },\n    { id: 'hist-3', timestamp: now, regime: 'Risk-Off', confidence: 65, delta: '+5', note: 'Dislocation from credit stress.' }\n  ],\n  automations: [\n    { name: 'Signal publish → Slack brief', status: 'running', detail: 'Next dispatch in 12 min', lastRun: now },\n    { name: 'Macro data ingestion', status: 'queued', detail: 'Waiting for APAC econ releases', lastRun: now },\n    { name: 'Portfolio rebalance trigger', status: 'snoozed', detail: 'Paused until volatility < 18', lastRun: now }\n  ]\n}}];"
+      },
+      "id": "Function",
+      "name": "Build Signals Payload",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [560, 300]
+    }
+  ],
+  "connections": {
+    "Signals Webhook": {
+      "main": [
+        [
+          {
+            "node": "Build Signals Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {},
+  "pinData": {}
+}

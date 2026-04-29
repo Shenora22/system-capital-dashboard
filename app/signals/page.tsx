@@ -1,5 +1,5 @@
 import ShenoraShell from "@/components/ShenoraShell";
-import { signalFeed } from "@/data/shenora";
+import { signalFeed } from "@/Data/shenora";
 
 const regimes = [
   {

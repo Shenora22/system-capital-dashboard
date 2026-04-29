@@ -6,10 +6,12 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "seed:skytrace": "node scripts/seed-skytrace.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.99.2",
+    "mapbox-gl": "^3.23.0",
     "next": "16.1.6",
     "openai": "^6.27.0",
     "react": "19.2.3",

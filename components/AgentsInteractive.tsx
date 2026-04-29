@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useState } from "react";
 import AgentLogViewer, { AgentLogEntry } from "@/components/AgentLogViewer";
-import { agentActivityLog, agentRoster } from "@/data/shenora";
+import { agentActivityLog, agentRoster } from "@/Data/shenora";
 
 type ActivityEntry = {
   time: string;

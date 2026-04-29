@@ -16,6 +16,20 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
+## SkyTrace Demo Seed
+
+To seed the `drone_latest_location` table with three demo drones, run the seed script with Supabase credentials provided through environment variables:
+
+```bash
+SUPABASE_URL="https://your-project.supabase.co" \
+SUPABASE_SERVICE_ROLE_KEY="your-service-role-key" \
+npm run seed:skytrace
+```
+
+The service role key is only read by `scripts/seed-skytrace.mjs` at runtime. Do not put it in `app/drone/page.tsx` or any client-side file.
+
+The seed uses `upsert` on `drone_id`, so rerunning it refreshes the same three demo rows instead of creating duplicates.
+
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.

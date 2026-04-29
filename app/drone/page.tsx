@@ -11,6 +11,8 @@ const SUPABASE_PUBLISHABLE_KEY =
 const INACTIVITY_THRESHOLD_MS = 5 * 60 * 1000;
 const EVENT_DEDUPE_WINDOW_MS = 5 * 1000;
 const FOLLOW_UPDATE_THRESHOLD_METERS = 25;
+const MEANINGFUL_MOVEMENT_METERS = 8;
+const MOVEMENT_TRAIL_LOOKBACK_POINTS = 6;
 const RANDOM_MOVEMENT_DEGREES = 0.00035;
 const HOME_BASE: [number, number] = [-74.006, 40.7128];
 const supabase =
@@ -62,6 +64,17 @@ type PreviousDroneState = {
   action: Recommendation["action"];
   batteryBand: BatteryBand;
   batteryPct: number | null;
+  isStalled: boolean;
+  needsCheckIn: boolean;
+};
+
+type DroneHealthSignals = {
+  droneId: string;
+  droneName: string;
+  isPingRecent: boolean;
+  hasMovement: boolean;
+  isStalled: boolean;
+  needsCheckIn: boolean;
 };
 
 const RECOMMENDATION_COLORS: Record<
@@ -139,6 +152,18 @@ function getBatteryBand(batteryPct?: number | null): BatteryBand {
   return "NORMAL";
 }
 
+function isRecentPing(
+  lastPing?: string,
+  now = Date.now(),
+  thresholdMs = INACTIVITY_THRESHOLD_MS
+): boolean {
+  if (!lastPing) return false;
+
+  const lastPingTime = new Date(lastPing).getTime();
+
+  return Number.isFinite(lastPingTime) && now - lastPingTime <= thresholdMs;
+}
+
 function getDistanceMeters(
   from: [number, number],
   to: [number, number]
@@ -146,6 +171,43 @@ function getDistanceMeters(
   return new mapboxgl.LngLat(from[0], from[1]).distanceTo(
     new mapboxgl.LngLat(to[0], to[1])
   );
+}
+
+function hasMeaningfulMovement(
+  trail: [number, number][] = [],
+  thresholdMeters = MEANINGFUL_MOVEMENT_METERS
+): boolean {
+  if (trail.length < MOVEMENT_TRAIL_LOOKBACK_POINTS) return true;
+
+  const recentTrail = trail.slice(-MOVEMENT_TRAIL_LOOKBACK_POINTS);
+  const firstPoint = recentTrail[0];
+  const lastPoint = recentTrail[recentTrail.length - 1];
+
+  return getDistanceMeters(firstPoint, lastPoint) >= thresholdMeters;
+}
+
+function getDroneHealthSignals(
+  drone: DroneRow,
+  trail: [number, number][] = [],
+  now = Date.now()
+): DroneHealthSignals {
+  const droneName = drone.drone_name ?? drone.drone_id;
+  const isPingRecentValue = isRecentPing(drone.last_ping, now);
+  const hasMovement = hasMeaningfulMovement(trail);
+  const normalizedStatus = drone.drone_status?.toLowerCase() ?? "";
+  const isStationaryStatus =
+    normalizedStatus.includes("charging") ||
+    normalizedStatus.includes("docked") ||
+    normalizedStatus.includes("idle");
+
+  return {
+  droneId: drone.drone_id,
+  droneName,
+  isPingRecent: isPingRecentValue,
+  hasMovement,
+  isStalled: isPingRecentValue && !hasMovement && !isStationaryStatus,
+  needsCheckIn: !isPingRecentValue,
+};
 }
 
 function getRandomMovementOffset(): number {
@@ -159,6 +221,8 @@ export default function DronePage() {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [eventLog, setEventLog] = useState<EventLogItem[]>([]);
+  
+ 
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const markersRef = useRef<Record<string, mapboxgl.Marker>>({});
@@ -222,12 +286,14 @@ export default function DronePage() {
 
   // 1. Load initial drone data
   useEffect(() => {
-    if (!supabase) return;
+  if (!supabase) return;
 
-    async function fetchDrones() {
-      const { data, error } = await supabase
-        .from("drone_latest_location")
-        .select("*");
+  const supabaseClient = supabase; // 👈 ADD THIS LINE
+
+  async function fetchDrones() {
+    const { data, error } = await supabaseClient // 👈 CHANGE THIS
+      .from("drone_latest_location")
+      .select("*");
 
       if (error) {
         console.error("Supabase fetch error:", error);
@@ -407,6 +473,31 @@ export default function DronePage() {
         trail.shift();
       }
 
+      const healthSignals = getDroneHealthSignals(drone, trail);
+
+      if (healthSignals.isStalled || healthSignals.needsCheckIn) {
+        setAlerts((prev) => {
+          const alertId = healthSignals.isStalled
+            ? `${drone.drone_id}-stalled`
+            : `${drone.drone_id}-check-in`;
+          const exists = prev.find((alert) => alert.id === alertId);
+
+          if (exists) return prev;
+
+          return [
+            {
+              id: alertId,
+              message: healthSignals.isStalled
+                ? `${healthSignals.droneName} appears stalled`
+                : `${healthSignals.droneName} needs check-in`,
+              type: "warning",
+              timestamp: Date.now(),
+            },
+            ...prev,
+          ];
+        });
+      }
+
       let marker = markersRef.current[drone.drone_id];
 
       if (!marker) {
@@ -545,7 +636,7 @@ export default function DronePage() {
   useEffect(() => {
     const now = Date.now();
 
-    const nextRecommendations: Recommendation[] = droneData.map((drone) => {
+    const baseRecommendations: Recommendation[] = droneData.map((drone) => {
       const battery = drone.battery_pct ?? 100;
       const lastPingTime = drone.last_ping
         ? new Date(drone.last_ping).getTime()
@@ -581,6 +672,45 @@ export default function DronePage() {
         timestamp: now,
       };
     });
+
+    const healthRecommendations: Recommendation[] = droneData.flatMap((drone) => {
+      const healthSignals = getDroneHealthSignals(
+        drone,
+        trailsRef.current[drone.drone_id],
+        now
+      );
+
+      if (healthSignals.isStalled) {
+        return [
+          {
+            id: `${drone.drone_id}-stalled-check-in`,
+            droneId: drone.drone_id,
+            action: "CHECK_IN_REQUIRED",
+            reason: `${healthSignals.droneName} has recent pings but no meaningful movement`,
+            timestamp: now,
+          },
+        ];
+      }
+
+      if (healthSignals.needsCheckIn) {
+        return [
+          {
+            id: `${drone.drone_id}-missed-check-in`,
+            droneId: drone.drone_id,
+            action: "CHECK_IN_REQUIRED",
+            reason: `${healthSignals.droneName} missed its latest check-in window`,
+            timestamp: now,
+          },
+        ];
+      }
+
+      return [];
+    });
+
+    const nextRecommendations = [
+      ...baseRecommendations,
+      ...healthRecommendations,
+    ];
 
     const timeout = window.setTimeout(() => {
       setRecommendations(nextRecommendations);
@@ -642,6 +772,11 @@ export default function DronePage() {
       const currentAction = recommendation?.action ?? "MONITOR";
       const currentBatteryBand = getBatteryBand(drone.battery_pct);
       const currentBatteryPct = drone.battery_pct ?? null;
+      const healthSignals = getDroneHealthSignals(
+        drone,
+        trailsRef.current[drone.drone_id],
+        now
+      );
       const previousState = previousDroneStatesRef.current[drone.drone_id];
 
       if (!previousState) {
@@ -649,6 +784,8 @@ export default function DronePage() {
           action: currentAction,
           batteryBand: currentBatteryBand,
           batteryPct: currentBatteryPct,
+          isStalled: healthSignals.isStalled,
+          needsCheckIn: healthSignals.needsCheckIn,
         };
         return;
       }
@@ -688,10 +825,38 @@ export default function DronePage() {
         );
       }
 
+      if (!previousState.isStalled && healthSignals.isStalled) {
+        addEvent(
+          {
+            id: `${drone.drone_id}-stalled-${now}`,
+            timestamp: now,
+            droneName: healthSignals.droneName,
+            action: "STALLED",
+            reason: "Recent pings continue, but trail movement is below threshold",
+          },
+          `${drone.drone_id}-STALLED`
+        );
+      }
+
+      if (!previousState.needsCheckIn && healthSignals.needsCheckIn) {
+        addEvent(
+          {
+            id: `${drone.drone_id}-check-in-${now}`,
+            timestamp: now,
+            droneName: healthSignals.droneName,
+            action: "CHECK_IN_REQUIRED",
+            reason: "Last ping is outside the check-in window",
+          },
+          `${drone.drone_id}-CHECK_IN_SIGNAL`
+        );
+      }
+
       previousDroneStatesRef.current[drone.drone_id] = {
         action: currentAction,
         batteryBand: currentBatteryBand,
         batteryPct: currentBatteryPct,
+        isStalled: healthSignals.isStalled,
+        needsCheckIn: healthSignals.needsCheckIn,
       };
     });
 

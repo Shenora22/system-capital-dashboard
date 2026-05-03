@@ -80,3 +80,20 @@ SUPABASE_URL="https://your-project.supabase.co" \
 SUPABASE_SERVICE_ROLE_KEY="your-service-role-key" \
 npm run seed:skytrace
 ```
+
+## Automated GitHub Backups for n8n Workflows
+
+Use the backup helper script to create timestamped Git commits from `n8n/workflows/*.json`:
+
+```bash
+scripts/backup-n8n-workflows.sh
+```
+
+To push automatically to GitHub:
+
+```bash
+PUSH=1 scripts/backup-n8n-workflows.sh
+```
+
+For a full scheduled automation pattern, see `docs/n8n-backup-plan.md`.
+

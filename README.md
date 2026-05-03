@@ -1,24 +1,79 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# System Capital AI Automation
 
-## Getting Started
+A central repository for System Capital's automation assets: n8n workflows, AI prompts, operational docs, scripts, and shared configuration.
 
-First, run the development server:
+## Repository Structure
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+```text
+.
+├── app/                    # Next.js application
+├── components/             # UI components
+├── config/                 # Shared configuration templates and environment docs
+├── docs/                   # Runbooks, SOPs, architecture notes
+├── n8n/
+│   └── workflows/          # Exported n8n workflow JSON files
+├── prompts/                # Reusable LLM prompts and prompt packs
+├── scripts/                # Utility scripts (seeders, migration helpers, backups)
+└── ...
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## What to Store Here
 
-## SkyTrace Demo Seed
+- **n8n workflows**: Exported JSON workflow definitions from n8n.
+- **prompts**: Versioned prompt templates used by agents and automations.
+- **docs**: Human-readable operating procedures and architecture notes.
+- **scripts**: Automation helpers (setup, validation, migration, backup support).
+- **config**: Non-secret config templates (never commit real secrets).
 
-To seed the `drone_latest_location` table with three demo drones, run the seed script with Supabase credentials provided through environment variables:
+## Backup Workflow (Recommended)
+
+Use this lightweight process to keep your automations recoverable and versioned:
+
+1. **Export workflows from n8n** after any meaningful change.
+2. **Save each workflow JSON** into `n8n/workflows/` using a stable naming convention, e.g.:
+   - `lead-enrichment.workflow.json`
+   - `weekly-report.workflow.json`
+3. **Update related docs/prompts** if logic or AI behavior changed.
+4. **Commit to Git** with a clear message (example: `chore(n8n): update weekly report workflow`).
+5. **Push to GitHub** so the remote repository is your off-platform backup.
+
+Optional hardening:
+- Add a scheduled job in n8n that auto-exports workflows to a backup destination.
+- Mirror this repo to a second remote for disaster recovery.
+
+## How to Export n8n Workflows into This Repo
+
+### Option A: From n8n UI (most common)
+
+1. Open the workflow in n8n.
+2. Click **...** (workflow menu) → **Download** / **Export**.
+3. Save the `.json` file.
+4. Move the file into `n8n/workflows/`.
+5. Rename it to `<workflow-name>.workflow.json`.
+6. Commit and push.
+
+### Option B: CLI/Automation Export
+
+If your n8n deployment supports CLI export in your environment, export workflows to a temp folder, then copy the files into `n8n/workflows/` and commit.
+
+## Local Development (Web App)
+
+```bash
+npm install
+npm run dev
+```
+
+Open <http://localhost:3000>.
+
+## Security Notes
+
+- Never commit API keys, tokens, or production credentials.
+- Keep secrets in environment variables or your secret manager.
+- If a secret is committed accidentally, rotate it immediately.
+
+## Existing Utility Script
+
+Seed SkyTrace demo drone data:
 
 ```bash
 SUPABASE_URL="https://your-project.supabase.co" \
@@ -26,25 +81,19 @@ SUPABASE_SERVICE_ROLE_KEY="your-service-role-key" \
 npm run seed:skytrace
 ```
 
-The service role key is only read by `scripts/seed-skytrace.mjs` at runtime. Do not put it in `app/drone/page.tsx` or any client-side file.
+## Automated GitHub Backups for n8n Workflows
 
-The seed uses `upsert` on `drone_id`, so rerunning it refreshes the same three demo rows instead of creating duplicates.
+Use the backup helper script to create timestamped Git commits from `n8n/workflows/*.json`:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+scripts/backup-n8n-workflows.sh
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+To push automatically to GitHub:
 
-## Learn More
+```bash
+PUSH=1 scripts/backup-n8n-workflows.sh
+```
 
-To learn more about Next.js, take a look at the following resources:
+For a full scheduled automation pattern, see `docs/n8n-backup-plan.md`.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.

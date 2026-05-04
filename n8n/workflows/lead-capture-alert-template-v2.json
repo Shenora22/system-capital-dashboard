@@ -1,0 +1,118 @@
+{
+  "name": "System Capital - Lead Capture Alert Template V2",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "system-capital-lead-capture",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_in",
+      "name": "Lead Capture Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [260, 280]
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $json || {};\nconst str = (v) => (v === null || v === undefined ? '' : String(v).trim());\nconst toLower = (v) => str(v).toLowerCase();\n\nconst name = str(input.Name || input.name) || 'Unknown Lead';\nconst email = str(input.Email || input.email).toLowerCase();\nconst business = str(input.Business || input.business) || 'Not provided';\nconst selectedPackage = str(input['Select Package'] || input.package || input.selectedPackage) || 'Not provided';\nconst automationRequest = str(input['Automation Request'] || input.automationRequest || input.need || input.projectNeed) || 'Not provided';\n\nconst source = str(input.source || input.form || input.formName || 'System Capital Form');\nconst receivedAt = new Date().toISOString();\nconst leadId = `lead_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;\n\nconst pkgLower = toLower(selectedPackage);\nconst reqLower = toLower(automationRequest);\nconst urgentTerms = ['asap', 'urgent', 'immediately', 'today'];\n\nconst highByPackage = pkgLower.includes('full') || pkgLower.includes('$149') || pkgLower.includes('custom');\nconst highByUrgency = urgentTerms.some(t => reqLower.includes(t));\nconst priority = (highByPackage || highByUrgency) ? 'High' : 'Normal';\n\nconst rawPreview = JSON.stringify(input).slice(0, 1200);\n\nreturn [{\n  json: {\n    leadId,\n    name,\n    email,\n    business,\n    package: selectedPackage,\n    automationRequest,\n    source,\n    receivedAt,\n    priority,\n    emailExists: !!email,\n    rawPreview\n  }\n}];"
+      },
+      "id": "normalize_lead",
+      "name": "Normalize Lead Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [520, 280]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$json.emailExists}}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "if_email_exists",
+      "name": "Email Exists?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [760, 280]
+    },
+    {
+      "parameters": {
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "text": "=🚀 New Automation Lead — System Capital\n\nPriority: {{$json.priority}}\n\n👤 Name: {{$json.name}}\n📧 Email: {{$json.email}}\n🏢 Business: {{$json.business}}\n📦 Package: {{$json.package}}\n🎯 Request: {{$json.automationRequest}}\n📌 Source: {{$json.source}}\n🕐 Time: {{$json.receivedAt}}\n\n✅ Lead captured automatically"
+      },
+      "id": "telegram_lead_alert",
+      "name": "Telegram Lead Alert",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [1020, 180],
+      "credentials": {}
+    },
+    {
+      "parameters": {
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "text": "=⚠️ Lead Capture Error — Missing Email\n\nSource: {{$json.source}}\nTime: {{$json.receivedAt}}\n\nRaw Preview:\n{{$json.rawPreview}}"
+      },
+      "id": "telegram_missing_email",
+      "name": "Telegram Missing Email Alert",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [1020, 380],
+      "credentials": {}
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"ok\": true,\n  \"message\": \"Lead received\",\n  \"leadId\": \"{{$json.leadId}}\"\n}",
+        "options": {}
+      },
+      "id": "respond_success",
+      "name": "Respond Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1260, 180]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"ok\": false,\n  \"message\": \"Missing required email field\"\n}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "respond_missing_email",
+      "name": "Respond Missing Email",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1260, 380]
+    }
+  ],
+  "connections": {
+    "Lead Capture Webhook": {
+      "main": [[{"node": "Normalize Lead Data", "type": "main", "index": 0}]]
+    },
+    "Normalize Lead Data": {
+      "main": [[{"node": "Email Exists?", "type": "main", "index": 0}]]
+    },
+    "Email Exists?": {
+      "main": [
+        [{"node": "Telegram Lead Alert", "type": "main", "index": 0}],
+        [{"node": "Telegram Missing Email Alert", "type": "main", "index": 0}]
+      ]
+    },
+    "Telegram Lead Alert": {
+      "main": [[{"node": "Respond Success", "type": "main", "index": 0}]]
+    },
+    "Telegram Missing Email Alert": {
+      "main": [[{"node": "Respond Missing Email", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {},
+  "pinData": {}
+}

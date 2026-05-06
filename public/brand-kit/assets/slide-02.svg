@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1920" viewBox="0 0 1080 1920">
+  <rect width="1080" height="1920" fill="#F5F1E8"/>
+  <text x="84" y="96" fill="#6B7280" font-size="24" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace" letter-spacing="2">SYSTEM CAPITAL // CONTENT ENGINE</text>
+  <line x1="84" y1="132" x2="996" y2="132" stroke="#D6CFC2" stroke-width="2"/>
+  <text x="84" y="930" fill="#111111" font-size="106" font-family="'Playfair Display', Georgia, 'Times New Roman', serif" font-weight="700">You need a system that <tspan fill="#B42318">converts.</tspan></text>
+  <line x1="84" y1="1756" x2="996" y2="1756" stroke="#D6CFC2" stroke-width="2"/>
+  <text x="84" y="1820" fill="#6B7280" font-size="24" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace" letter-spacing="2">SLIDE 02 // MESSAGING-FIRST OPERATIONS</text>
+</svg>

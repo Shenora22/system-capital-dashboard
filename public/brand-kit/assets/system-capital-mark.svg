@@ -1,0 +1,14 @@
+<svg width="640" height="640" viewBox="0 0 640 640" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="640" height="640" rx="144" fill="#0A0C10"/>
+  <rect x="2" y="2" width="636" height="636" rx="142" stroke="url(#frame)" stroke-width="4"/>
+  <g filter="url(#glow)">
+    <path d="M320 126L468 211V381L320 466L172 381V211L320 126Z" stroke="url(#edge)" stroke-width="22" stroke-linejoin="round"/>
+    <path d="M320 191L410 243V347L320 399L230 347V243L320 191Z" fill="#0A0C10" stroke="#4F8EF7" stroke-width="16" stroke-linejoin="round"/>
+    <path d="M284 323C284 343 300 359 320 359C340 359 356 343 356 323C356 303 340 287 320 287C300 287 284 271 284 251C284 231 300 215 320 215C340 215 356 231 356 251" stroke="#F8FAFC" stroke-width="20" stroke-linecap="round"/>
+  </g>
+  <defs>
+    <linearGradient id="frame" x1="86" y1="38" x2="554" y2="602" gradientUnits="userSpaceOnUse"><stop stop-color="#4F8EF7"/><stop offset="1" stop-color="#8B5CF6"/></linearGradient>
+    <linearGradient id="edge" x1="172" y1="126" x2="468" y2="466" gradientUnits="userSpaceOnUse"><stop stop-color="#4F8EF7"/><stop offset="1" stop-color="#8B5CF6"/></linearGradient>
+    <filter id="glow" x="112" y="66" width="416" height="460" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="18" result="blur"/><feColorMatrix in="blur" type="matrix" values="0 0 0 0 0.31 0 0 0 0 0.56 0 0 0 0 0.97 0 0 0 0.48 0"/><feBlend in="SourceGraphic"/></filter>
+  </defs>
+</svg>

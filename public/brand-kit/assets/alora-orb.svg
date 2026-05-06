@@ -1,0 +1,13 @@
+<svg width="640" height="640" viewBox="0 0 640 640" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="640" height="640" rx="320" fill="#0A0C10"/>
+  <circle cx="320" cy="320" r="218" fill="url(#core)" fill-opacity="0.22" stroke="url(#rim)" stroke-width="3"/>
+  <circle cx="320" cy="320" r="132" fill="#0A0C10" stroke="#F8FAFC" stroke-opacity="0.28" stroke-width="2"/>
+  <path d="M226 403L302 224H339L415 403H369L354 365H286L271 403H226ZM299 330H341L320 276L299 330Z" fill="#F8FAFC"/>
+  <path d="M145 320H228M412 320H495M320 145V228M320 412V495" stroke="url(#rim)" stroke-width="7" stroke-linecap="round"/>
+  <g filter="url(#glow)"><circle cx="320" cy="320" r="248" stroke="url(#rim)" stroke-width="4" stroke-dasharray="24 18"/></g>
+  <defs>
+    <radialGradient id="core" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(276 237) rotate(52.2) scale(281)"><stop stop-color="#4F8EF7"/><stop offset="0.56" stop-color="#8B5CF6"/><stop offset="1" stop-color="#0A0C10" stop-opacity="0"/></radialGradient>
+    <linearGradient id="rim" x1="105" y1="130" x2="528" y2="507" gradientUnits="userSpaceOnUse"><stop stop-color="#4F8EF7"/><stop offset="1" stop-color="#8B5CF6"/></linearGradient>
+    <filter id="glow" x="48" y="48" width="544" height="544" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="12" result="blur"/><feColorMatrix in="blur" type="matrix" values="0 0 0 0 0.55 0 0 0 0 0.36 0 0 0 0 0.96 0 0 0 0.65 0"/><feBlend in="SourceGraphic"/></filter>
+  </defs>
+</svg>

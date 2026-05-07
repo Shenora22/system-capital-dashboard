@@ -36,23 +36,23 @@ Configure Tally's thank-you/redirect behavior to send users to the dashboard nex
 https://<your-dashboard-domain>/lead/next-step?package=<tally-package-answer>
 ```
 
-The next-step page keeps payment status messaging at `Pending` and routes the user to the correct payment or booking action based on the package query string.
+The next-step route reads the package query string and immediately redirects the user to the matching configured Stripe Payment Link or booking URL. If a real URL has not been configured yet, it shows a safe placeholder page and keeps payment status messaging at `Pending`.
 
 ## 3. Payment and booking link environment
 
 Set the server-side variables for API/n8n payloads and, if the Next.js page should render clickable public links at build/runtime, set the matching `NEXT_PUBLIC_` variables too:
 
 ```bash
-STRIPE_PAYMENT_LINK_STARTER=https://buy.stripe.com/<starter-link>
-STRIPE_PAYMENT_LINK_PRO=https://buy.stripe.com/<pro-link>
-CUSTOM_BUILD_BOOKING_LINK=https://<booking-link>
+STRIPE_PAYMENT_LINK_STARTER=[PASTE STRIPE LINK]
+STRIPE_PAYMENT_LINK_PRO=[PASTE STRIPE LINK]
+CUSTOM_BUILD_BOOKING_LINK=BOOKING_LINK_PLACEHOLDER_CUSTOM_BUILD
 
-NEXT_PUBLIC_STRIPE_PAYMENT_LINK_STARTER=https://buy.stripe.com/<starter-link>
-NEXT_PUBLIC_STRIPE_PAYMENT_LINK_PRO=https://buy.stripe.com/<pro-link>
-NEXT_PUBLIC_CUSTOM_BUILD_BOOKING_LINK=https://<booking-link>
+NEXT_PUBLIC_STRIPE_PAYMENT_LINK_STARTER=[PASTE STRIPE LINK]
+NEXT_PUBLIC_STRIPE_PAYMENT_LINK_PRO=[PASTE STRIPE LINK]
+NEXT_PUBLIC_CUSTOM_BUILD_BOOKING_LINK=BOOKING_LINK_PLACEHOLDER_CUSTOM_BUILD
 ```
 
-Payment status should remain `Pending` until Stripe and/or n8n confirms the payment. For the custom package, n8n can move the CRM status to `Booked` after the booking event confirms.
+The code also carries explicit fallback placeholders (`PASTE_STRIPE_LINK_STARTER_SYSTEM_49`, `PASTE_STRIPE_LINK_PRO_FOLLOW_UP_SYSTEM_149`, and `BOOKING_LINK_PLACEHOLDER_CUSTOM_BUILD`) so the flow is visible before production URLs are pasted in. Payment status should remain `Pending` until Stripe and/or n8n confirms the payment. For the custom package, n8n can move the CRM status to `Booked` after the booking event confirms.
 
 ## 4. n8n workflow
 

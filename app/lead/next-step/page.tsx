@@ -1,4 +1,9 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+
+const STRIPE_LINK_PLACEHOLDER_STARTER = "PASTE_STRIPE_LINK_STARTER_SYSTEM_49";
+const STRIPE_LINK_PLACEHOLDER_PRO = "PASTE_STRIPE_LINK_PRO_FOLLOW_UP_SYSTEM_149";
+const BOOKING_LINK_PLACEHOLDER = "BOOKING_LINK_PLACEHOLDER_CUSTOM_BUILD";
 
 const packages = {
   starter: {
@@ -8,6 +13,7 @@ const packages = {
     cta: "Pay $49 with Stripe",
     envKey: "NEXT_PUBLIC_STRIPE_PAYMENT_LINK_STARTER",
     fallbackEnvKey: "STRIPE_PAYMENT_LINK_STARTER",
+    placeholderUrl: STRIPE_LINK_PLACEHOLDER_STARTER,
   },
   pro: {
     name: "Pro Follow-Up System",
@@ -16,6 +22,7 @@ const packages = {
     cta: "Pay $149 with Stripe",
     envKey: "NEXT_PUBLIC_STRIPE_PAYMENT_LINK_PRO",
     fallbackEnvKey: "STRIPE_PAYMENT_LINK_PRO",
+    placeholderUrl: STRIPE_LINK_PLACEHOLDER_PRO,
   },
   custom: {
     name: "Custom Build",
@@ -24,6 +31,7 @@ const packages = {
     cta: "Book the custom build call",
     envKey: "NEXT_PUBLIC_CUSTOM_BUILD_BOOKING_LINK",
     fallbackEnvKey: "CUSTOM_BUILD_BOOKING_LINK",
+    placeholderUrl: BOOKING_LINK_PLACEHOLDER,
   },
 } as const;
 
@@ -53,7 +61,16 @@ function packageKey(value: string): PackageKey {
 
 function nextStepUrl(packageKeyValue: PackageKey): string {
   const selectedPackage = packages[packageKeyValue];
-  return process.env[selectedPackage.envKey] ?? process.env[selectedPackage.fallbackEnvKey] ?? "";
+  return process.env[selectedPackage.envKey] ?? process.env[selectedPackage.fallbackEnvKey] ?? selectedPackage.placeholderUrl;
+}
+
+function isConfiguredExternalUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" || url.protocol === "http:";
+  } catch {
+    return false;
+  }
 }
 
 export default async function LeadNextStepPage({ searchParams }: NextStepPageProps) {
@@ -61,6 +78,10 @@ export default async function LeadNextStepPage({ searchParams }: NextStepPagePro
   const selectedPackageKey = packageKey(firstParam(params.package ?? params.plan ?? params.offer));
   const selectedPackage = packages[selectedPackageKey];
   const selectedUrl = nextStepUrl(selectedPackageKey);
+
+  if (isConfiguredExternalUrl(selectedUrl)) {
+    redirect(selectedUrl);
+  }
 
   return (
     <main className="min-h-screen bg-slate-950 text-slate-50">
@@ -92,7 +113,7 @@ export default async function LeadNextStepPage({ searchParams }: NextStepPagePro
                   <span className="rounded-full border border-white/10 px-3 py-1 text-sm text-emerald-200">{option.price}</span>
                 </div>
                 <p className="mt-4 min-h-20 text-sm leading-6 text-slate-300">{option.description}</p>
-                {url ? (
+                {isConfiguredExternalUrl(url) ? (
                   <Link
                     href={url}
                     className="mt-6 inline-flex w-full justify-center rounded-2xl bg-emerald-400 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300"
@@ -101,7 +122,7 @@ export default async function LeadNextStepPage({ searchParams }: NextStepPagePro
                   </Link>
                 ) : (
                   <p className="mt-6 rounded-2xl border border-amber-300/30 bg-amber-300/10 px-4 py-3 text-sm text-amber-100">
-                    Configure {option.envKey} to enable this link.
+                    Replace the {option.placeholderUrl} placeholder or configure {option.envKey} to enable this link.
                   </p>
                 )}
               </article>
@@ -128,7 +149,7 @@ export default async function LeadNextStepPage({ searchParams }: NextStepPagePro
             Selected package: <span className="text-slate-100">{selectedPackage.name}</span>. Payment status remains
             Pending until Stripe or n8n sends the confirmation update.
           </p>
-          {selectedUrl ? null : (
+          {isConfiguredExternalUrl(selectedUrl) ? null : (
             <p className="mt-3 text-sm text-amber-100">
               The selected next-step link is not configured yet, but the intake and CRM capture still work.
             </p>

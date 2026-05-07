@@ -2,8 +2,11 @@ import Link from "next/link";
 import AskAloraWidget from "./AskAloraWidget";
 
 const navItems = [
-  { label: "Overview", href: "/overview", key: "overview" },
-  { label: "Projects", href: "/projects", key: "projects" },
+  { label: "Dashboard", href: "/dashboard", key: "dashboard" },
+  { label: "Command Center", href: "/command-center", key: "command-center" },
+  { label: "Mission Control", href: "/mission-control", key: "mission-control" },
+  { label: "Roadmap", href: "/roadmap", key: "roadmap" },
+  { label: "Operations", href: "/operations", key: "operations" },
   { label: "Agents", href: "/agents", key: "agents" },
   { label: "Automation", href: "/automation", key: "automation" },
   { label: "Signals", href: "/signals", key: "signals" },
@@ -27,9 +30,9 @@ export default function ShenoraShell({
       <div className="mx-auto flex max-w-7xl gap-6 px-4 py-8 sm:px-6 lg:px-10">
         <aside className="hidden w-64 flex-shrink-0 flex-col rounded-3xl border border-white/5 bg-slate-950/60 p-6 shadow-2xl shadow-slate-900/80 md:flex">
           <div>
-            <p className="text-[11px] uppercase tracking-[0.6em] text-slate-500">Shenora</p>
-            <p className="mt-1 text-lg font-semibold text-white">Network</p>
-            <p className="text-xs text-slate-500">AI Ops OS</p>
+            <p className="text-[11px] uppercase tracking-[0.6em] text-slate-500">System Capital</p>
+            <p className="mt-1 text-lg font-semibold text-white">Command OS</p>
+            <p className="text-xs text-slate-500">AI ops + capital dashboard</p>
           </div>
           <nav className="mt-8 flex flex-col gap-1 text-sm">
             {navItems.map((item) => {
@@ -57,7 +60,7 @@ export default function ShenoraShell({
         </aside>
         <section className="flex-1 space-y-8">
           <header className="rounded-3xl border border-white/5 bg-slate-900/70 px-6 py-6 shadow-xl shadow-slate-900/60">
-            <p className="text-[11px] uppercase tracking-[0.5em] text-slate-500">Shenora Network</p>
+            <p className="text-[11px] uppercase tracking-[0.5em] text-slate-500">System Capital</p>
             <h1 className="text-3xl font-semibold text-white">{title}</h1>
             {description && <p className="mt-2 text-sm text-slate-400">{description}</p>}
           </header>

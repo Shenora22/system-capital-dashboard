@@ -4,12 +4,13 @@ import Link from "next/link";
 
 const navItems = [
   { label: "Dashboard", href: "/dashboard" },
+  { label: "Command Center", href: "/command-center" },
+  { label: "Mission Control", href: "/mission-control" },
+  { label: "Roadmap", href: "/roadmap" },
+  { label: "Operations", href: "/operations" },
   { label: "Agents", href: "/agents" },
-  { label: "Signals", href: "/signals" },
   { label: "Automations", href: "/automation" },
-  { label: "Deployments", href: "/deployment" },
-  { label: "Prompt Library", href: "/prompts" },
-  { label: "Settings", href: "/settings" },
+  { label: "Signals", href: "/signals" },
 ];
 
 const moduleCards = [
@@ -38,16 +39,16 @@ const moduleCards = [
     detail: "Macro, risk, liquidity, and operational signals monitored.",
   },
   {
-    title: "Deployment Status",
-    href: "/deployment",
+    title: "Mission Control",
+    href: "/mission-control",
     metric: "7",
-    detail: "Production surfaces staged for agent-assisted release.",
+    detail: "Priority missions staged for agent-assisted execution.",
   },
   {
-    title: "Prompt Intelligence",
-    href: "/prompts",
+    title: "Roadmap",
+    href: "/roadmap",
     metric: "63",
-    detail: "Governed prompt assets with reusable operating context.",
+    detail: "Governed milestones across product, automation, and CRM releases.",
   },
 ];
 

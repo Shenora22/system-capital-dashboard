@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "seed:skytrace": "node automation/scripts/seed-skytrace.mjs",
-    "backup:n8n": "bash automation/scripts/backup-n8n-workflows.sh"
+    "backup:n8n": "bash automation/scripts/backup-n8n-workflows.sh",
+    "test:tally-lead": "node automation/scripts/test-tally-lead.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.99.2",

@@ -28,20 +28,21 @@ export async function GET() {
   };
 
   try {
-const res = await fetch("http://localhost:5678/webhook/system-capital-signals");
-const text = await res.text();
-console.log("RAW RESPONSE:", text);
+    // TODO(integrations): Move the n8n webhook URL into typed environment config before production.
+    const res = await fetch("http://localhost:5678/webhook/system-capital-signals");
+    const text = await res.text();
+    console.log("RAW RESPONSE:", text);
 
-let data;
+    let data;
 
-try {
-  data = JSON.parse(text);
-} catch {
-  return NextResponse.json(fallbackData);
-}
+    try {
+      data = JSON.parse(text);
+    } catch {
+      return NextResponse.json(fallbackData);
+    }
 
-return NextResponse.json(data?.label ? data : fallbackData);
-} catch (error) {
+    return NextResponse.json(data?.label ? data : fallbackData);
+  } catch (error) {
     console.error("API ERROR:", error);
 
     return NextResponse.json(fallbackData);

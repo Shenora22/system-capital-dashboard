@@ -2,11 +2,15 @@ import Link from "next/link";
 import AskAloraWidget from "./AskAloraWidget";
 
 const navItems = [
-  { label: "Overview", href: "/overview", key: "overview" },
-  { label: "Projects", href: "/projects", key: "projects" },
+  { label: "Dashboard", href: "/dashboard", key: "dashboard" },
+  { label: "Command Center", href: "/command-center", key: "command-center" },
+  { label: "Operations", href: "/operations", key: "operations" },
   { label: "Agents", href: "/agents", key: "agents" },
   { label: "Automation", href: "/automation", key: "automation" },
   { label: "Signals", href: "/signals", key: "signals" },
+  { label: "Deployment", href: "/deployment", key: "deployment" },
+  { label: "Prompts", href: "/prompts", key: "prompts" },
+  { label: "Brand Kit", href: "/brand-kit", key: "brand-kit" },
   { label: "Activity", href: "/activity", key: "activity" },
   { label: "Settings", href: "/settings", key: "settings" },
 ];

@@ -1,4 +1,4 @@
-import ShenoraShell from "@/components/ShenoraShell";
+import ShenoraShell from "@/dashboard/components/ShenoraShell";
 
 const projects = [
   {

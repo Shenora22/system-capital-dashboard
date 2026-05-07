@@ -3,12 +3,12 @@ set -euo pipefail
 
 # Backup all n8n workflow JSON files into Git with a timestamped commit.
 # Usage:
-#   scripts/backup-n8n-workflows.sh
-#   PUSH=1 scripts/backup-n8n-workflows.sh
-#   BRANCH=main PUSH=1 scripts/backup-n8n-workflows.sh
+#   automation/scripts/backup-n8n-workflows.sh
+#   PUSH=1 automation/scripts/backup-n8n-workflows.sh
+#   BRANCH=main PUSH=1 automation/scripts/backup-n8n-workflows.sh
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-WORKFLOW_DIR="${WORKFLOW_DIR:-$REPO_ROOT/n8n/workflows}"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+WORKFLOW_DIR="${WORKFLOW_DIR:-$REPO_ROOT/automation/n8n/workflows}"
 BRANCH="${BRANCH:-$(git -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD)}"
 TIMESTAMP="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 COMMIT_MSG="chore(n8n-backup): workflow snapshot ${TIMESTAMP}"

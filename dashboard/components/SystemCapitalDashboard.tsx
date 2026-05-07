@@ -5,6 +5,8 @@ import Link from "next/link";
 const navItems = [
   { label: "Dashboard", href: "/dashboard" },
   { label: "Agents", href: "/agents" },
+  { label: "Roadmap", href: "/roadmap" },
+  { label: "Mission Control", href: "/mission-control" },
   { label: "Signals", href: "/signals" },
   { label: "Automations", href: "/automation" },
   { label: "Deployments", href: "/deployment" },
@@ -30,6 +32,18 @@ const moduleCards = [
     href: "/automation",
     metric: "42",
     detail: "n8n and OpenClaw workflows mapped to business outcomes.",
+  },
+  {
+    title: "Roadmap",
+    href: "/roadmap",
+    metric: "3",
+    detail: "Now, next, and later delivery lanes for the command layer.",
+  },
+  {
+    title: "Mission Control",
+    href: "/mission-control",
+    metric: "Green",
+    detail: "Operator cockpit for launch readiness and route health.",
   },
   {
     title: "Signal Engine",

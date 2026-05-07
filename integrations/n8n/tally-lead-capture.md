@@ -36,23 +36,23 @@ Configure Tally's thank-you/redirect behavior to send users to the dashboard nex
 https://<your-dashboard-domain>/lead/next-step?package=<tally-package-answer>
 ```
 
-The next-step route reads the package query string and immediately redirects the user to the matching configured Stripe Payment Link or booking URL. If a real URL has not been configured yet, it shows a safe placeholder page and keeps payment status messaging at `Pending`.
+The next-step route reads the package query string and immediately redirects the user to the matching configured Stripe Payment Link or booking URL. If an environment override is invalid, it shows a safe configuration page and keeps payment status messaging at `Pending`.
 
 ## 3. Payment and booking link environment
 
 Set the server-side variables for API/n8n payloads and, if the Next.js page should render clickable public links at build/runtime, set the matching `NEXT_PUBLIC_` variables too:
 
 ```bash
-STRIPE_PAYMENT_LINK_STARTER=[PASTE STRIPE LINK]
-STRIPE_PAYMENT_LINK_PRO=[PASTE STRIPE LINK]
-CUSTOM_BUILD_BOOKING_LINK=BOOKING_LINK_PLACEHOLDER_CUSTOM_BUILD
+STRIPE_PAYMENT_LINK_STARTER=https://buy.stripe.com/...
+STRIPE_PAYMENT_LINK_PRO=https://buy.stripe.com/...
+CUSTOM_BUILD_BOOKING_LINK=https://cal.com/your-booking-link
 
-NEXT_PUBLIC_STRIPE_PAYMENT_LINK_STARTER=[PASTE STRIPE LINK]
-NEXT_PUBLIC_STRIPE_PAYMENT_LINK_PRO=[PASTE STRIPE LINK]
-NEXT_PUBLIC_CUSTOM_BUILD_BOOKING_LINK=BOOKING_LINK_PLACEHOLDER_CUSTOM_BUILD
+NEXT_PUBLIC_STRIPE_PAYMENT_LINK_STARTER=https://buy.stripe.com/...
+NEXT_PUBLIC_STRIPE_PAYMENT_LINK_PRO=https://buy.stripe.com/...
+NEXT_PUBLIC_CUSTOM_BUILD_BOOKING_LINK=https://cal.com/your-booking-link
 ```
 
-The code also carries explicit fallback placeholders (`PASTE_STRIPE_LINK_STARTER_SYSTEM_49`, `PASTE_STRIPE_LINK_PRO_FOLLOW_UP_SYSTEM_149`, and `BOOKING_LINK_PLACEHOLDER_CUSTOM_BUILD`) so the flow is visible before production URLs are pasted in. Payment status should remain `Pending` until Stripe and/or n8n confirms the payment. For the custom package, n8n can move the CRM status to `Booked` after the booking event confirms.
+The code carries these production URLs as defaults, while the environment variables above can override them per deployment. Payment status should remain `Pending` until Stripe and/or n8n confirms the payment. For the custom package, n8n can move the CRM status to `Booked` after the booking event confirms.
 
 ## 4. n8n workflow
 

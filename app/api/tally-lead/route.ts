@@ -35,30 +35,30 @@ type NormalizedLead = {
 const PRODUCTION_WEBHOOK_PATH = "/webhook/system-capital-lead";
 const STATUS_NEW_LEAD = "New Lead";
 const PAYMENT_STATUS_PENDING = "Pending";
-const STRIPE_LINK_PLACEHOLDER_STARTER = "PASTE_STRIPE_LINK_STARTER_SYSTEM_49";
-const STRIPE_LINK_PLACEHOLDER_PRO = "PASTE_STRIPE_LINK_PRO_FOLLOW_UP_SYSTEM_149";
-const BOOKING_LINK_PLACEHOLDER = "BOOKING_LINK_PLACEHOLDER_CUSTOM_BUILD";
+const STARTER_PAYMENT_LINK = "https://buy.stripe.com/...";
+const PRO_PAYMENT_LINK = "https://buy.stripe.com/...";
+const CUSTOM_BUILD_BOOKING_LINK = "https://cal.com/your-booking-link";
 
-const PACKAGE_NEXT_STEPS: Record<string, Omit<PaymentNextStep, "url"> & { envKey: string; placeholderUrl: string }> = {
+const PACKAGE_NEXT_STEPS: Record<string, Omit<PaymentNextStep, "url"> & { envKey: string; productionUrl: string }> = {
   starter: {
     type: "stripe_payment_link",
     label: "Starter System",
     amount: 49,
     envKey: "STRIPE_PAYMENT_LINK_STARTER",
-    placeholderUrl: STRIPE_LINK_PLACEHOLDER_STARTER,
+    productionUrl: STARTER_PAYMENT_LINK,
   },
   pro: {
     type: "stripe_payment_link",
     label: "Pro Follow-Up System",
     amount: 149,
     envKey: "STRIPE_PAYMENT_LINK_PRO",
-    placeholderUrl: STRIPE_LINK_PLACEHOLDER_PRO,
+    productionUrl: PRO_PAYMENT_LINK,
   },
   custom: {
     type: "booking_link",
     label: "Custom Build",
     envKey: "CUSTOM_BUILD_BOOKING_LINK",
-    placeholderUrl: BOOKING_LINK_PLACEHOLDER,
+    productionUrl: CUSTOM_BUILD_BOOKING_LINK,
   },
 };
 
@@ -113,15 +113,15 @@ function paymentNextStepForPackage(selectedPackage: string): PaymentNextStep {
     return {
       type: "manual_follow_up",
       label: "Manual Follow-Up",
-      url: process.env.CUSTOM_BUILD_BOOKING_LINK ?? BOOKING_LINK_PLACEHOLDER,
+      url: process.env.CUSTOM_BUILD_BOOKING_LINK ?? CUSTOM_BUILD_BOOKING_LINK,
     };
   }
 
-  const { envKey, placeholderUrl, ...nextStep } = PACKAGE_NEXT_STEPS[key];
+  const { envKey, productionUrl, ...nextStep } = PACKAGE_NEXT_STEPS[key];
 
   return {
     ...nextStep,
-    url: process.env[envKey] ?? placeholderUrl,
+    url: process.env[envKey] ?? productionUrl,
   };
 }
 

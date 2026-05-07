@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-const STRIPE_LINK_PLACEHOLDER_STARTER = "PASTE_STRIPE_LINK_STARTER_SYSTEM_49";
-const STRIPE_LINK_PLACEHOLDER_PRO = "PASTE_STRIPE_LINK_PRO_FOLLOW_UP_SYSTEM_149";
-const BOOKING_LINK_PLACEHOLDER = "BOOKING_LINK_PLACEHOLDER_CUSTOM_BUILD";
+const STARTER_PAYMENT_LINK = "https://buy.stripe.com/...";
+const PRO_PAYMENT_LINK = "https://buy.stripe.com/...";
+const CUSTOM_BUILD_BOOKING_LINK = "https://cal.com/your-booking-link";
 
 const packages = {
   starter: {
@@ -13,7 +13,7 @@ const packages = {
     cta: "Pay $49 with Stripe",
     envKey: "NEXT_PUBLIC_STRIPE_PAYMENT_LINK_STARTER",
     fallbackEnvKey: "STRIPE_PAYMENT_LINK_STARTER",
-    placeholderUrl: STRIPE_LINK_PLACEHOLDER_STARTER,
+    productionUrl: STARTER_PAYMENT_LINK,
   },
   pro: {
     name: "Pro Follow-Up System",
@@ -22,7 +22,7 @@ const packages = {
     cta: "Pay $149 with Stripe",
     envKey: "NEXT_PUBLIC_STRIPE_PAYMENT_LINK_PRO",
     fallbackEnvKey: "STRIPE_PAYMENT_LINK_PRO",
-    placeholderUrl: STRIPE_LINK_PLACEHOLDER_PRO,
+    productionUrl: PRO_PAYMENT_LINK,
   },
   custom: {
     name: "Custom Build",
@@ -31,7 +31,7 @@ const packages = {
     cta: "Book the custom build call",
     envKey: "NEXT_PUBLIC_CUSTOM_BUILD_BOOKING_LINK",
     fallbackEnvKey: "CUSTOM_BUILD_BOOKING_LINK",
-    placeholderUrl: BOOKING_LINK_PLACEHOLDER,
+    productionUrl: CUSTOM_BUILD_BOOKING_LINK,
   },
 } as const;
 
@@ -61,7 +61,7 @@ function packageKey(value: string): PackageKey {
 
 function nextStepUrl(packageKeyValue: PackageKey): string {
   const selectedPackage = packages[packageKeyValue];
-  return process.env[selectedPackage.envKey] ?? process.env[selectedPackage.fallbackEnvKey] ?? selectedPackage.placeholderUrl;
+  return process.env[selectedPackage.envKey] ?? process.env[selectedPackage.fallbackEnvKey] ?? selectedPackage.productionUrl;
 }
 
 function isConfiguredExternalUrl(value: string): boolean {
@@ -122,7 +122,7 @@ export default async function LeadNextStepPage({ searchParams }: NextStepPagePro
                   </Link>
                 ) : (
                   <p className="mt-6 rounded-2xl border border-amber-300/30 bg-amber-300/10 px-4 py-3 text-sm text-amber-100">
-                    Replace the {option.placeholderUrl} placeholder or configure {option.envKey} to enable this link.
+                    Configure {option.envKey} with a valid URL to override the production link.
                   </p>
                 )}
               </article>
@@ -151,7 +151,7 @@ export default async function LeadNextStepPage({ searchParams }: NextStepPagePro
           </p>
           {isConfiguredExternalUrl(selectedUrl) ? null : (
             <p className="mt-3 text-sm text-amber-100">
-              The selected next-step link is not configured yet, but the intake and CRM capture still work.
+              The selected next-step link is not a valid external URL. Check the production link or environment override.
             </p>
           )}
         </section>

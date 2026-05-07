@@ -9,13 +9,13 @@ const palette = [
 ];
 
 const assetGallery = [
-  { title: "System Capital mark", type: "Generated fallback logo", src: "/brand-kit/assets/system-capital-mark.svg" },
-  { title: "Alora assistant orb", type: "Generated fallback icon", src: "/brand-kit/assets/alora-orb.svg" },
-  { title: "Carousel slide 01", type: "Existing System Capital asset", src: "/brand-kit/assets/slide-01.svg" },
-  { title: "Carousel slide 02", type: "Existing System Capital asset", src: "/brand-kit/assets/slide-02.svg" },
-  { title: "Carousel slide 03", type: "Existing System Capital asset", src: "/brand-kit/assets/slide-03.svg" },
-  { title: "Carousel slide 04", type: "Existing System Capital asset", src: "/brand-kit/assets/slide-04.svg" },
-  { title: "Carousel slide 05", type: "Existing System Capital asset", src: "/brand-kit/assets/slide-05.svg" },
+  { title: "System Capital mark", type: "Generated fallback logo", src: "/marketing/assets/brand-kit/system-capital-mark.svg" },
+  { title: "Alora assistant orb", type: "Generated fallback icon", src: "/marketing/assets/brand-kit/alora-orb.svg" },
+  { title: "Carousel slide 01", type: "Existing System Capital asset", src: "/marketing/assets/brand-kit/slide-01.svg" },
+  { title: "Carousel slide 02", type: "Existing System Capital asset", src: "/marketing/assets/brand-kit/slide-02.svg" },
+  { title: "Carousel slide 03", type: "Existing System Capital asset", src: "/marketing/assets/brand-kit/slide-03.svg" },
+  { title: "Carousel slide 04", type: "Existing System Capital asset", src: "/marketing/assets/brand-kit/slide-04.svg" },
+  { title: "Carousel slide 05", type: "Existing System Capital asset", src: "/marketing/assets/brand-kit/slide-05.svg" },
 ];
 
 const voice = ["Precise", "Calm", "Decisive", "Elite", "Operational", "Human-centered"];
@@ -38,7 +38,7 @@ export default function BrandKitPage() {
           </div>
         </div>
         <div className="logo-stage" aria-label="System Capital and Alora logo lockup">
-          <Image src="/brand-kit/assets/system-capital-mark.svg" alt="System Capital geometric mark" width={260} height={260} priority />
+          <Image src="/marketing/assets/brand-kit/system-capital-mark.svg" alt="System Capital geometric mark" width={260} height={260} priority />
           <div>
             <span>System Capital</span>
             <strong>Alora</strong>
@@ -52,8 +52,8 @@ export default function BrandKitPage() {
           <p className="section-kicker">01 / Logo</p>
           <h2>Logo system</h2>
           <div className="logo-row">
-            <div className="logo-tile"><Image src="/brand-kit/assets/system-capital-mark.svg" alt="System Capital mark" width={150} height={150} /></div>
-            <div className="logo-tile"><Image src="/brand-kit/assets/alora-orb.svg" alt="Alora orb icon" width={150} height={150} /></div>
+            <div className="logo-tile"><Image src="/marketing/assets/brand-kit/system-capital-mark.svg" alt="System Capital mark" width={150} height={150} /></div>
+            <div className="logo-tile"><Image src="/marketing/assets/brand-kit/alora-orb.svg" alt="Alora orb icon" width={150} height={150} /></div>
           </div>
           <p className="muted">
             The requested “System Capital Branding” folder was not present in this workspace, so the board uses existing System Capital carousel assets plus elegant generated placeholders.
@@ -114,7 +114,7 @@ export default function BrandKitPage() {
               <p>System Capital deploys autonomous agents, signal engines, and Alora-led execution loops for founders, operators, and capital allocators.</p>
               <div className="hero-actions"><a className="btn btn-primary">Build with Alora</a><a className="btn btn-ghost">Watch demo</a></div>
             </div>
-            <div className="hero-orb"><Image src="/brand-kit/assets/alora-orb.svg" alt="Alora orb" width={280} height={280} /></div>
+            <div className="hero-orb"><Image src="/marketing/assets/brand-kit/alora-orb.svg" alt="Alora orb" width={280} height={280} /></div>
           </div>
         </div>
       </section>
@@ -145,7 +145,7 @@ export default function BrandKitPage() {
         <div className="panel social-card">
           <p className="section-kicker">07 / Social post</p>
           <div className="post-preview">
-            <Image src="/brand-kit/assets/system-capital-mark.svg" alt="System Capital social avatar" width={74} height={74} />
+            <Image src="/marketing/assets/brand-kit/system-capital-mark.svg" alt="System Capital social avatar" width={74} height={74} />
             <h2>Your business does not need more tools. It needs an operating system.</h2>
             <p>Alora turns messy workflows into autonomous execution loops.</p>
           </div>
@@ -155,7 +155,7 @@ export default function BrandKitPage() {
           <div className="thumbnail-preview">
             <span>ALORA AI</span>
             <h2>I built an AI command center for my company</h2>
-            <Image src="/brand-kit/assets/alora-orb.svg" alt="Alora thumbnail orb" width={260} height={260} />
+            <Image src="/marketing/assets/brand-kit/alora-orb.svg" alt="Alora thumbnail orb" width={260} height={260} />
           </div>
         </div>
       </section>

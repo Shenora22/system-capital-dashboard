@@ -1,8 +1,8 @@
 'use client';
 
 import { useCallback, useMemo, useState } from "react";
-import AgentLogViewer, { AgentLogEntry } from "@/components/AgentLogViewer";
-import { agentActivityLog, agentRoster } from "@/Data/shenora";
+import AgentLogViewer, { AgentLogEntry } from "@/logging/components/AgentLogViewer";
+import { agentActivityLog, agentRoster } from "@/memory/data/shenora";
 
 type ActivityEntry = {
   time: string;

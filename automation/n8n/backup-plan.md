@@ -1,10 +1,10 @@
 # n8n → GitHub Backup Plan
 
-This plan snapshots exported n8n workflow JSON files from `n8n/workflows/` and commits them with a UTC timestamp.
+This plan snapshots exported n8n workflow JSON files from `automation/n8n/workflows/` and commits them with a UTC timestamp.
 
 ## 1) Repository Convention
 
-- Store all exported workflows in: `n8n/workflows/*.json`
+- Store all exported workflows in: `automation/n8n/workflows/*.json`
 - Keep stable file names: `<workflow-name>.workflow.json`
 
 ## 2) Backup Command
@@ -12,21 +12,21 @@ This plan snapshots exported n8n workflow JSON files from `n8n/workflows/` and c
 Run manually:
 
 ```bash
-scripts/backup-n8n-workflows.sh
+automation/scripts/backup-n8n-workflows.sh
 ```
 
 Run and push automatically:
 
 ```bash
-PUSH=1 scripts/backup-n8n-workflows.sh
+PUSH=1 automation/scripts/backup-n8n-workflows.sh
 ```
 
 ## 3) Suggested n8n Scheduling Workflow
 
 1. **Cron node**: run every hour/day.
-2. **Execute Command node**: run export command in your n8n host environment to refresh JSON files in `n8n/workflows/`.
+2. **Execute Command node**: run export command in your n8n host environment to refresh JSON files in `automation/n8n/workflows/`.
 3. **Execute Command node**: run
-   `PUSH=1 /path/to/repo/scripts/backup-n8n-workflows.sh`
+   `PUSH=1 /path/to/repo/automation/scripts/backup-n8n-workflows.sh`
 4. **IF node**: branch on command exit status.
 5. **Slack/Email node**: send success or failure notification.
 

@@ -1,62 +1,35 @@
 # System Capital AI Automation
 
-A central repository for System Capital's automation assets: n8n workflows, AI prompts, operational docs, scripts, and shared configuration.
+System Capital is a Next.js command dashboard plus automation repository for agents, n8n workflows, AI prompts, operational memory, marketing assets, integrations, logs, and workflow specs.
 
-## Repository Structure
+For the full architecture overview, see [`SYSTEM_MAP.md`](./SYSTEM_MAP.md).
+
+## Clean Architecture Layout
 
 ```text
 .
-├── app/                    # Next.js application
-├── components/             # UI components
-├── config/                 # Shared configuration templates and environment docs
-├── docs/                   # Runbooks, SOPs, architecture notes
-├── n8n/
-│   └── workflows/          # Exported n8n workflow JSON files
-├── prompts/                # Reusable LLM prompts and prompt packs
-├── scripts/                # Utility scripts (seeders, migration helpers, backups)
-└── ...
+├── app/                         # Stable Next.js routes and API boundaries
+├── dashboard/                   # Command dashboard shell and UI surfaces
+├── agents/                      # Agent roster/control UI
+├── automation/                  # n8n exports, backup plans, and utility scripts
+├── prompts/                     # Versioned prompt library placeholder
+├── memory/                      # Local fixtures and demo state
+├── marketing/                   # Brand/content/campaign hierarchy and marketing components
+├── public/marketing/            # Public marketing assets served by Next.js
+├── integrations/                # External-service clients and adapter placeholders
+├── logging/                     # Log viewer UI and future logging schemas
+├── workflows/                   # Human-readable workflow/process specs
+├── config/                      # Non-secret config templates
+└── types/                       # Shared declarations
 ```
 
-## What to Store Here
+## Route Compatibility
 
-- **n8n workflows**: Exported JSON workflow definitions from n8n.
-- **prompts**: Versioned prompt templates used by agents and automations.
-- **docs**: Human-readable operating procedures and architecture notes.
-- **scripts**: Automation helpers (setup, validation, migration, backup support).
-- **config**: Non-secret config templates (never commit real secrets).
+Existing routes remain in `app/` and should not be moved unless a route migration plan is created. Implementation code lives in subsystem folders and route files import it.
 
-## Backup Workflow (Recommended)
+Marketing assets were moved under `public/marketing/`. Legacy public asset URLs remain available through Next.js rewrites in `next.config.ts`.
 
-Use this lightweight process to keep your automations recoverable and versioned:
-
-1. **Export workflows from n8n** after any meaningful change.
-2. **Save each workflow JSON** into `n8n/workflows/` using a stable naming convention, e.g.:
-   - `lead-enrichment.workflow.json`
-   - `weekly-report.workflow.json`
-3. **Update related docs/prompts** if logic or AI behavior changed.
-4. **Commit to Git** with a clear message (example: `chore(n8n): update weekly report workflow`).
-5. **Push to GitHub** so the remote repository is your off-platform backup.
-
-Optional hardening:
-- Add a scheduled job in n8n that auto-exports workflows to a backup destination.
-- Mirror this repo to a second remote for disaster recovery.
-
-## How to Export n8n Workflows into This Repo
-
-### Option A: From n8n UI (most common)
-
-1. Open the workflow in n8n.
-2. Click **...** (workflow menu) → **Download** / **Export**.
-3. Save the `.json` file.
-4. Move the file into `n8n/workflows/`.
-5. Rename it to `<workflow-name>.workflow.json`.
-6. Commit and push.
-
-### Option B: CLI/Automation Export
-
-If your n8n deployment supports CLI export in your environment, export workflows to a temp folder, then copy the files into `n8n/workflows/` and commit.
-
-## Local Development (Web App)
+## Local Development
 
 ```bash
 npm install
@@ -65,15 +38,34 @@ npm run dev
 
 Open <http://localhost:3000>.
 
-## Security Notes
+## Build
 
-- Never commit API keys, tokens, or production credentials.
-- Keep secrets in environment variables or your secret manager.
-- If a secret is committed accidentally, rotate it immediately.
+```bash
+npm run build
+```
 
-## Existing Utility Script
+## n8n Workflow Backups
 
-Seed SkyTrace demo drone data:
+Export workflows into `automation/n8n/workflows/` using stable names such as:
+
+- `lead-enrichment.workflow.json`
+- `weekly-report.workflow.json`
+
+Create a timestamped Git snapshot with:
+
+```bash
+npm run backup:n8n
+```
+
+or directly:
+
+```bash
+automation/scripts/backup-n8n-workflows.sh
+```
+
+For scheduled backup guidance, see [`automation/n8n/backup-plan.md`](./automation/n8n/backup-plan.md).
+
+## SkyTrace Seed Utility
 
 ```bash
 SUPABASE_URL="https://your-project.supabase.co" \
@@ -81,19 +73,8 @@ SUPABASE_SERVICE_ROLE_KEY="your-service-role-key" \
 npm run seed:skytrace
 ```
 
-## Automated GitHub Backups for n8n Workflows
+## Security Notes
 
-Use the backup helper script to create timestamped Git commits from `n8n/workflows/*.json`:
-
-```bash
-scripts/backup-n8n-workflows.sh
-```
-
-To push automatically to GitHub:
-
-```bash
-PUSH=1 scripts/backup-n8n-workflows.sh
-```
-
-For a full scheduled automation pattern, see `docs/n8n-backup-plan.md`.
-
+- Never commit API keys, tokens, or production credentials.
+- Keep secrets in environment variables or a secret manager.
+- If a secret is committed accidentally, rotate it immediately.

@@ -1,5 +1,5 @@
-import ShenoraShell from "@/components/ShenoraShell";
-import AgentsInteractive from "@/components/AgentsInteractive";
+import ShenoraShell from "@/dashboard/components/ShenoraShell";
+import AgentsInteractive from "@/agents/components/AgentsInteractive";
 
 export default function AgentsPage() {
   return (

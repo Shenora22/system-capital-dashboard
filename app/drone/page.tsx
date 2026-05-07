@@ -15,6 +15,7 @@ const MEANINGFUL_MOVEMENT_METERS = 8;
 const MOVEMENT_TRAIL_LOOKBACK_POINTS = 6;
 const RANDOM_MOVEMENT_DEGREES = 0.00035;
 const HOME_BASE: [number, number] = [-74.006, 40.7128];
+// TODO(integrations): Move drone telemetry persistence behind integrations/supabase once schema is finalized.
 const supabase =
   SUPABASE_URL && SUPABASE_PUBLISHABLE_KEY
     ? createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY)

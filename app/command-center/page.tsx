@@ -7,7 +7,7 @@ export default async function CommandCenter() {
     });
 
     data = await res.json();
-  } catch (error) {
+  } catch {
     data = null;
   }
 

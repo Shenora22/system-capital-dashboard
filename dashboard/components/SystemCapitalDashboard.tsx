@@ -4,15 +4,30 @@ import Link from "next/link";
 
 const navItems = [
   { label: "Dashboard", href: "/dashboard" },
+  { label: "Mission Control", href: "/mission-control" },
+  { label: "Roadmap", href: "/roadmap" },
+  { label: "Operations", href: "/operations" },
+  { label: "Projects", href: "/projects" },
   { label: "Agents", href: "/agents" },
+  { label: "Automation", href: "/automation" },
   { label: "Signals", href: "/signals" },
-  { label: "Automations", href: "/automation" },
-  { label: "Deployments", href: "/deployment" },
-  { label: "Prompt Library", href: "/prompts" },
+  { label: "Activity", href: "/activity" },
   { label: "Settings", href: "/settings" },
 ];
 
 const moduleCards = [
+  {
+    title: "Mission Control",
+    href: "/mission-control",
+    metric: "Live",
+    detail: "Unified command queue for agents, signals, automations, and operator decisions.",
+  },
+  {
+    title: "Roadmap",
+    href: "/roadmap",
+    metric: "3",
+    detail: "Current, next, and planned priorities for the System Capital OS release path.",
+  },
   {
     title: "AI Operations Center",
     href: "/operations",
@@ -36,18 +51,6 @@ const moduleCards = [
     href: "/signals",
     metric: "187",
     detail: "Macro, risk, liquidity, and operational signals monitored.",
-  },
-  {
-    title: "Deployment Status",
-    href: "/deployment",
-    metric: "7",
-    detail: "Production surfaces staged for agent-assisted release.",
-  },
-  {
-    title: "Prompt Intelligence",
-    href: "/prompts",
-    metric: "63",
-    detail: "Governed prompt assets with reusable operating context.",
   },
 ];
 

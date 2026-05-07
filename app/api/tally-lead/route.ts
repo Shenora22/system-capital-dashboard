@@ -23,6 +23,7 @@ type NormalizedLead = {
   budget: string;
   need: string;
   source: string;
+  leadStatus: string;
   status: string;
   paymentStatus: string;
   paymentNextStep: PaymentNextStep;
@@ -33,7 +34,7 @@ type NormalizedLead = {
 };
 
 const PRODUCTION_WEBHOOK_PATH = "/webhook/system-capital-lead";
-const STATUS_NEW_LEAD = "New Lead";
+const LEAD_STATUS_NEW_LEAD = "New Lead";
 const PAYMENT_STATUS_PENDING = "Pending";
 const STARTER_PAYMENT_LINK = "https://buy.stripe.com/...";
 const PRO_PAYMENT_LINK = "https://buy.stripe.com/...";
@@ -192,7 +193,8 @@ function normalizeTallyLead(payload: Record<string, unknown>): NormalizedLead {
     budget: firstPresent(fields, ["budget", "monthly budget", "project budget", "estimated budget"], "Not provided"),
     need: firstPresent(fields, ["need", "primary need", "what do you need", "use case", "project need"], "Not provided"),
     source,
-    status: STATUS_NEW_LEAD,
+    leadStatus: LEAD_STATUS_NEW_LEAD,
+    status: LEAD_STATUS_NEW_LEAD,
     paymentStatus: PAYMENT_STATUS_PENDING,
     paymentNextStep: paymentNextStepForPackage(selectedPackage),
     receivedAt: new Date().toISOString(),

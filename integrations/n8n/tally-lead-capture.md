@@ -12,21 +12,25 @@ Do **not** rely on Tally's native Notion mapping as the primary CRM path. It can
 
 ## 1. Tally intake fields
 
-Keep Tally as the form experience and include these fields in the intake:
+Keep Tally as the form experience and include these fields in the production intake form:
 
-- `name`
-- `email`
-- `business`
-- `package`
-- `budget`
-- `need`
-- `source`
+| Tally field label | Stable key / alias | Required | Notes |
+| --- | --- | --- | --- |
+| Name | `name` | Yes | Maps to Notion `Name`. |
+| Email | `email` | Yes | Maps to Notion `Email`; API rejects leads without email. |
+| Business | `business` | Recommended | Maps to Notion `Business`. |
+| Need | `need` | Recommended | Maps to Notion `Need`. |
+| Budget | `budget` | Recommended | Maps to Notion `Budget`. |
+| Source | `source` | Recommended | Maps to Notion `Source`; defaults to Tally form name when blank. |
+| Package | `package` | Yes | Single-select package selector used for payment routing and Notion `Package`. |
 
-Recommended package choices:
+Configure the Tally `Package` field as a required single-select/dropdown with exactly these choices:
 
-- `Starter System` — $49 Stripe Payment Link
-- `Pro Follow-Up System` — $149 Stripe Payment Link
-- `Custom Build` — booking link
+- `Starter System ($49)`
+- `Pro Follow-Up System ($149)`
+- `Custom Build`
+
+The API and n8n normalizer canonicalize `Starter System ($49)` to `Starter System` and `Pro Follow-Up System ($149)` to `Pro Follow-Up System` before storing the value in Notion.
 
 ## 2. Post-submit redirect
 
@@ -101,12 +105,12 @@ In n8n, configure the `Write Notion CRM Lead` node with:
   - `Name` (title)
   - `Email` (email)
   - `Business` (text)
-  - `Package` (select)
-  - `Budget` (text)
   - `Need` (text)
+  - `Budget` (text)
   - `Source` (select)
-  - `Status` (select)
+  - `Package` (select)
   - `Payment Status` (select)
+  - `Lead Status` (select)
   - `Payment Next Step` (select)
   - `Payment Link` (url)
   - `Payment Amount` (number)
@@ -114,7 +118,7 @@ In n8n, configure the `Write Notion CRM Lead` node with:
   - `Lead ID` (text)
   - `Tally Response ID` (text)
 
-Use these `Status` select options in the dashboard/CRM:
+Use these `Lead Status` select options in the dashboard/CRM:
 
 - `New Lead`
 - `Payment Pending`
@@ -156,9 +160,9 @@ Tally should send `FORM_RESPONSE` payloads. The API and n8n workflow normalize t
 
 Create a separate Stripe Payment Link / checkout confirmation workflow in n8n that updates the Notion CRM record by `Lead ID`, `Tally Response ID`, or email:
 
-- Successful Starter or Pro payment → set `Status` to `Paid` and `Payment Status` to `Paid`.
-- Custom booking confirmation → set `Status` to `Booked`.
-- No payment or no booking after the follow-up window → set `Status` to `Follow-Up Needed`.
+- Successful Starter or Pro payment → set `Lead Status` to `Paid` and `Payment Status` to `Paid`.
+- Custom booking confirmation → set `Lead Status` to `Booked`.
+- No payment or no booking after the follow-up window → set `Lead Status` to `Follow-Up Needed`.
 
 ## 10. Smoke test
 
@@ -183,7 +187,7 @@ curl -i -X POST 'http://localhost:3000/api/tally-lead?dryRun=1' \
         { "key": "name", "label": "Name", "value": "Test Lead" },
         { "key": "email", "label": "Email", "value": "test.lead@example.com" },
         { "key": "business", "label": "Business", "value": "Example Co" },
-        { "key": "package", "label": "Select Package", "value": "Pro Follow-Up System" },
+        { "key": "package", "label": "Package", "value": "Pro Follow-Up System ($149)" },
         { "key": "budget", "label": "Budget", "value": "$500-$1,000" },
         { "key": "need", "label": "Need", "value": "Automated payment and booking follow-up" },
         { "key": "source", "label": "Source", "value": "Tally smoke test" }
@@ -202,3 +206,15 @@ Expected response:
 ```
 
 Remove `?dryRun=1` only when `N8N_LEAD_WEBHOOK_URL` or `N8N_BASE_URL` is configured and the n8n workflow is active.
+
+## 11. Production Tally verification
+
+After publishing the Tally form, verify the public form and routing with:
+
+```bash
+TALLY_PUBLIC_FORM_URL=https://tally.so/r/<form-id> \
+TALLY_LEAD_BASE_URL=https://<your-dashboard-domain> \
+npm run test:tally-production-flow
+```
+
+The verification script checks that the live public Tally form HTML contains all three package choices (`Starter System ($49)`, `Pro Follow-Up System ($149)`, and `Custom Build`) and that `/lead/next-step` redirects each package to the expected production Stripe or booking URL. If `TALLY_PUBLIC_FORM_URL` is omitted, the script still verifies dashboard payment routing but reports the live Tally form check as skipped.

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 
 const navItems = [
   { label: "Dashboard", href: "/dashboard" },
@@ -51,13 +52,31 @@ const moduleCards = [
   },
 ];
 
-const activityItems = [
-  { title: "Alora analyzed Fed minutes", meta: "Macro desk · 2 min ago", tone: "cyan" },
-  { title: "Workflow completed", meta: "Lead capture sync · 8 min ago", tone: "violet" },
-  { title: "Risk regime updated", meta: "Signal engine · 14 min ago", tone: "amber" },
-  { title: "n8n automation executed", meta: "Ops workflow · 21 min ago", tone: "emerald" },
-  { title: "Agent status changed", meta: "Registry monitor · 33 min ago", tone: "rose" },
+type AgentLog = {
+  id: string;
+  timestamp: string;
+  agent: string;
+  action: string;
+  result: string;
+  status: string;
+};
+
+type ActivityItem = {
+  title: string;
+  meta: string;
+  tone: string;
+  detail?: string;
+};
+
+const fallbackActivityItems: ActivityItem[] = [
+  { title: "Alora analyzed Fed minutes", meta: "Macro desk · standby", tone: "cyan" },
+  { title: "Workflow completed", meta: "Lead capture sync · standby", tone: "violet" },
+  { title: "Risk regime updated", meta: "Signal engine · standby", tone: "amber" },
+  { title: "n8n automation executed", meta: "Ops workflow · standby", tone: "emerald" },
+  { title: "Agent status changed", meta: "Registry monitor · standby", tone: "rose" },
 ];
+
+const feedTones = ["cyan", "violet", "amber", "emerald", "rose"];
 
 const commandStats = [
   { label: "Live agents", value: "12" },
@@ -66,6 +85,71 @@ const commandStats = [
 ];
 
 export default function SystemCapitalDashboard() {
+  const [agentLogs, setAgentLogs] = useState<AgentLog[]>([]);
+  const [logsLoading, setLogsLoading] = useState(true);
+  const [logsError, setLogsError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadAgentLogs() {
+      try {
+        const response = await fetch("/api/agent-logs?limit=8", { cache: "no-store" });
+        const data = (await response.json()) as { logs?: AgentLog[]; error?: string };
+
+        if (!response.ok) {
+          throw new Error(data.error || "Agent Logs request failed.");
+        }
+
+        if (active) {
+          setAgentLogs(data.logs ?? []);
+          setLogsError(null);
+        }
+      } catch (error) {
+        if (active) {
+          setLogsError(error instanceof Error ? error.message : "Unable to load Agent Logs.");
+        }
+      } finally {
+        if (active) {
+          setLogsLoading(false);
+        }
+      }
+    }
+
+    loadAgentLogs();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const activityItems = useMemo<ActivityItem[]>(() => {
+    if (!agentLogs.length) return fallbackActivityItems;
+
+    return agentLogs.map((log, index) => ({
+      title: log.action,
+      meta: `${log.agent} · ${log.status} · ${log.timestamp}`,
+      detail: log.result,
+      tone: feedTones[index % feedTones.length],
+    }));
+  }, [agentLogs]);
+
+  const resolvedCommandStats = useMemo(() => {
+    const uniqueAgents = new Set(agentLogs.map((log) => log.agent)).size;
+
+    return commandStats.map((stat) => {
+      if (stat.label === "Runs today" && agentLogs.length) {
+        return { ...stat, value: String(agentLogs.length) };
+      }
+
+      if (stat.label === "Live agents" && uniqueAgents) {
+        return { ...stat, value: String(uniqueAgents) };
+      }
+
+      return stat;
+    });
+  }, [agentLogs]);
+
   return (
     <main className="scd-shell">
       <aside className="scd-sidebar" aria-label="System Capital navigation">
@@ -102,7 +186,7 @@ export default function SystemCapitalDashboard() {
             </p>
           </div>
           <div className="scd-command-card" aria-label="Command stats">
-            {commandStats.map((stat) => (
+            {resolvedCommandStats.map((stat) => (
               <div key={stat.label}>
                 <span>{stat.label}</span>
                 <strong>{stat.value}</strong>
@@ -117,7 +201,7 @@ export default function SystemCapitalDashboard() {
               <span>{module.title}</span>
               <strong>{module.metric}</strong>
               <p>{module.detail}</p>
-              <em>Open module →</em>
+              <span className="scd-open-module">Open Module →</span>
             </Link>
           ))}
         </div>
@@ -126,15 +210,25 @@ export default function SystemCapitalDashboard() {
       <aside className="scd-activity scd-glass" aria-label="Live activity feed">
         <div className="scd-activity-header">
           <p className="scd-kicker">Live Feed</p>
-          <span>Streaming</span>
+          <span>{logsLoading ? "Syncing" : logsError ? "Offline" : "Notion Live"}</span>
         </div>
         <div className="scd-feed-list">
+          {logsError && (
+            <article className="scd-feed-item" data-tone="amber">
+              <div className="scd-feed-dot" />
+              <div>
+                <strong>Notion Agent Logs unavailable</strong>
+                <p>{logsError}</p>
+              </div>
+            </article>
+          )}
           {activityItems.map((item) => (
-            <article className="scd-feed-item" data-tone={item.tone} key={item.title}>
+            <article className="scd-feed-item" data-tone={item.tone} key={`${item.title}-${item.meta}`}>
               <div className="scd-feed-dot" />
               <div>
                 <strong>{item.title}</strong>
                 <p>{item.meta}</p>
+                {item.detail ? <small>{item.detail}</small> : null}
               </div>
             </article>
           ))}
@@ -393,12 +487,18 @@ export default function SystemCapitalDashboard() {
           margin: 14px 0 0;
         }
 
-        .scd-module em {
+        .scd-open-module {
           display: inline-flex;
           margin-top: 22px;
+          border: 1px solid rgba(34, 211, 238, 0.34);
+          border-radius: 999px;
+          background: rgba(34, 211, 238, 0.1);
           color: #bae6fd;
-          font-style: normal;
-          font-weight: 800;
+          padding: 9px 13px;
+          font-size: 0.78rem;
+          font-weight: 900;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
         }
 
         .scd-activity {
@@ -471,6 +571,14 @@ export default function SystemCapitalDashboard() {
         .scd-feed-item p {
           margin: 4px 0 0;
           font-size: 0.82rem;
+        }
+
+        .scd-feed-item small {
+          display: block;
+          margin-top: 8px;
+          color: #cbd5e1;
+          font-size: 0.76rem;
+          line-height: 1.5;
         }
 
         @media (max-width: 1180px) {

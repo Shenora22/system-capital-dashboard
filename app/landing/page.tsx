@@ -189,8 +189,8 @@ export default function LandingPage() {
             <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4">
               <p className="text-sm uppercase tracking-[0.3em] text-emerald-300">Alora Insight</p>
               <p className="mt-2 text-sm text-emerald-100">
-                "Credit stress moderating while energy remains constructive. Consider rotating into Asia DM equities
-                with a 30 bps overlay." — Ask Alora
+                &ldquo;Credit stress moderating while energy remains constructive. Consider rotating into Asia DM equities
+                with a 30 bps overlay.&rdquo; — Ask Alora
               </p>
             </div>
           </div>

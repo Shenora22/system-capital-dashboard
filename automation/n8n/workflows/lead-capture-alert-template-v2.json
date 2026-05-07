@@ -1,11 +1,11 @@
 {
-  "name": "System Capital - Lead Capture Alert Template V2",
-  "active": false,
+  "name": "System Capital - Lead Capture Production",
+  "active": true,
   "nodes": [
     {
       "parameters": {
         "httpMethod": "POST",
-        "path": "system-capital-lead-capture",
+        "path": "system-capital-lead",
         "responseMode": "responseNode",
         "options": {}
       },
@@ -17,10 +17,10 @@
     },
     {
       "parameters": {
-        "jsCode": "const input = $json || {};\nconst str = (v) => (v === null || v === undefined ? '' : String(v).trim());\nconst toLower = (v) => str(v).toLowerCase();\n\nconst name = str(input.Name || input.name) || 'Unknown Lead';\nconst email = str(input.Email || input.email).toLowerCase();\nconst business = str(input.Business || input.business) || 'Not provided';\nconst selectedPackage = str(input['Select Package'] || input.package || input.selectedPackage) || 'Not provided';\nconst automationRequest = str(input['Automation Request'] || input.automationRequest || input.need || input.projectNeed) || 'Not provided';\n\nconst source = str(input.source || input.form || input.formName || 'System Capital Form');\nconst receivedAt = new Date().toISOString();\nconst leadId = `lead_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;\n\nconst pkgLower = toLower(selectedPackage);\nconst reqLower = toLower(automationRequest);\nconst urgentTerms = ['asap', 'urgent', 'immediately', 'today'];\n\nconst highByPackage = pkgLower.includes('full') || pkgLower.includes('$149') || pkgLower.includes('custom');\nconst highByUrgency = urgentTerms.some(t => reqLower.includes(t));\nconst priority = (highByPackage || highByUrgency) ? 'High' : 'Normal';\n\nconst rawPreview = JSON.stringify(input).slice(0, 1200);\n\nreturn [{\n  json: {\n    leadId,\n    name,\n    email,\n    business,\n    package: selectedPackage,\n    automationRequest,\n    source,\n    receivedAt,\n    priority,\n    emailExists: !!email,\n    rawPreview\n  }\n}];"
+        "jsCode": "const input = $json || {};\nconst raw = input.rawPayload || input;\nconst data = raw.data || {};\nconst fields = Array.isArray(data.fields) ? data.fields : (Array.isArray(raw.fields) ? raw.fields : []);\nconst str = (value) => {\n  if (value === null || value === undefined) return '';\n  if (Array.isArray(value)) return value.map(str).filter(Boolean).join(', ');\n  if (typeof value === 'object') return str(value.text ?? value.label ?? value.value ?? JSON.stringify(value));\n  return String(value).trim();\n};\nconst key = (value) => str(value).toLowerCase().replace(/[^a-z0-9]+/g, '');\nconst mapped = {};\nfor (const field of fields) {\n  const options = Array.isArray(field.options) ? new Map(field.options.map((option) => [str(option.id), str(option.text || option.label || option.value || option.id)])) : new Map();\n  const rawAnswer = field.value ?? field.answer;\n  const answer = Array.isArray(rawAnswer) && options.size ? rawAnswer.map((value) => options.get(str(value)) || str(value)).filter(Boolean).join(', ') : str(rawAnswer);\n  for (const alias of [field.key, field.label, field.title, field.name].filter(Boolean)) {\n    mapped[key(alias)] = answer;\n  }\n}\nfor (const [alias, value] of Object.entries(input)) {\n  if (alias !== 'rawPayload') mapped[key(alias)] = str(value);\n}\nconst pick = (aliases, fallback = 'Not provided') => {\n  for (const alias of aliases) {\n    const value = mapped[key(alias)];\n    if (value) return value;\n  }\n  return fallback;\n};\nconst eventType = str(raw.eventType || raw.type || input.eventType || 'FORM_RESPONSE');\nconst name = pick(['name', 'full name', 'full_name', 'contact name'], 'Unknown Lead');\nconst email = pick(['email', 'email address', 'contact email'], '').toLowerCase();\nconst business = pick(['business', 'company', 'business name', 'company name']);\nconst selectedPackage = pick(['package', 'select package', 'plan', 'offer']);\nconst source = pick(['source', 'utm_source', 'form', 'form name'], str(data.formName) || 'Tally');\nconst receivedAt = str(input.receivedAt) || new Date().toISOString();\nconst leadId = `lead_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;\nif (eventType !== 'FORM_RESPONSE') {\n  return [{ json: { accepted: false, reason: 'Ignored non-FORM_RESPONSE Tally event', eventType, receivedAt, rawPreview: JSON.stringify(raw).slice(0, 1200) } }];\n}\nreturn [{\n  json: {\n    accepted: true,\n    leadId,\n    name,\n    email,\n    business,\n    package: selectedPackage,\n    source,\n    receivedAt,\n    formId: str(data.formId || raw.formId || input.formId),\n    responseId: str(data.responseId || raw.responseId || input.responseId),\n    emailExists: Boolean(email),\n    rawPreview: JSON.stringify(raw).slice(0, 1200)\n  }\n}];"
       },
       "id": "normalize_lead",
-      "name": "Normalize Lead Data",
+      "name": "Normalize Tally FORM_RESPONSE",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [520, 280]
@@ -30,89 +30,141 @@
         "conditions": {
           "boolean": [
             {
-              "value1": "={{$json.emailExists}}",
+              "value1": "={{$json.accepted && $json.emailExists}}",
               "value2": true
             }
           ]
         }
       },
-      "id": "if_email_exists",
-      "name": "Email Exists?",
+      "id": "if_valid_lead",
+      "name": "Valid FORM_RESPONSE With Email?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
       "position": [760, 280]
     },
     {
       "parameters": {
-        "chatId": "YOUR_TELEGRAM_CHAT_ID",
-        "text": "=🚀 New Automation Lead — System Capital\n\nPriority: {{$json.priority}}\n\n👤 Name: {{$json.name}}\n📧 Email: {{$json.email}}\n🏢 Business: {{$json.business}}\n📦 Package: {{$json.package}}\n🎯 Request: {{$json.automationRequest}}\n📌 Source: {{$json.source}}\n🕐 Time: {{$json.receivedAt}}\n\n✅ Lead captured automatically"
+        "resource": "databasePage",
+        "databaseId": "={{$env.NOTION_LEADS_DATABASE_ID}}",
+        "title": "Name",
+        "titleValue": "={{$json.name}}",
+        "propertiesUi": {
+          "propertyValues": [
+            { "key": "Email", "emailValue": "={{$json.email}}" },
+            { "key": "Business", "textValue": "={{$json.business}}" },
+            { "key": "Package", "selectValue": "={{$json.package}}" },
+            { "key": "Source", "selectValue": "={{$json.source}}" },
+            { "key": "Status", "selectValue": "New" },
+            { "key": "Received At", "dateValue": "={{$json.receivedAt}}" },
+            { "key": "Lead ID", "textValue": "={{$json.leadId}}" },
+            { "key": "Tally Response ID", "textValue": "={{$json.responseId}}" }
+          ]
+        }
       },
-      "id": "telegram_lead_alert",
-      "name": "Telegram Lead Alert",
-      "type": "n8n-nodes-base.telegram",
-      "typeVersion": 1,
-      "position": [1020, 180],
-      "credentials": {}
+      "id": "notion_create_lead",
+      "name": "Write Notion CRM Lead",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2,
+      "position": [1020, 160],
+      "credentials": {
+        "notionApi": {
+          "id": "YOUR_NOTION_CREDENTIAL_ID",
+          "name": "Notion account"
+        }
+      }
     },
     {
       "parameters": {
-        "chatId": "YOUR_TELEGRAM_CHAT_ID",
-        "text": "=⚠️ Lead Capture Error — Missing Email\n\nSource: {{$json.source}}\nTime: {{$json.receivedAt}}\n\nRaw Preview:\n{{$json.rawPreview}}"
+        "jsCode": "console.log('[LEAD_CAPTURE_EVENT]', { leadId: $json.leadId, email: $json.email, source: $json.source, receivedAt: $json.receivedAt });\nreturn $input.all();"
       },
-      "id": "telegram_missing_email",
-      "name": "Telegram Missing Email Alert",
+      "id": "log_success_event",
+      "name": "Log Lead Event",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1260, 160]
+    },
+    {
+      "parameters": {
+        "chatId": "={{$env.LEAD_ALERT_CHAT_ID}}",
+        "text": "=🚀 New System Capital Lead\n\n👤 Name: {{$json.name}}\n📧 Email: {{$json.email}}\n🏢 Business: {{$json.business}}\n📦 Package: {{$json.package}}\n📌 Source: {{$json.source}}\n🕐 Time: {{$json.receivedAt}}\n\n✅ Written to Notion CRM / Leads"
+      },
+      "id": "telegram_lead_alert",
+      "name": "Send Lead Alert",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1,
-      "position": [1020, 380],
-      "credentials": {}
+      "position": [1500, 160],
+      "credentials": {
+        "telegramApi": {
+          "id": "YOUR_TELEGRAM_CREDENTIAL_ID",
+          "name": "Telegram account"
+        }
+      }
     },
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={\n  \"ok\": true,\n  \"message\": \"Lead received\",\n  \"leadId\": \"{{$json.leadId}}\"\n}",
+        "responseBody": "={\n  \"success\": true,\n  \"message\": \"Lead captured successfully\"\n}",
         "options": {}
       },
       "id": "respond_success",
       "name": "Respond Success",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1260, 180]
+      "position": [1740, 160]
+    },
+    {
+      "parameters": {
+        "jsCode": "console.log('[LEAD_CAPTURE_REJECTED]', { reason: $json.reason || 'Missing email', eventType: $json.eventType, rawPreview: $json.rawPreview });\nreturn $input.all();"
+      },
+      "id": "log_rejected_event",
+      "name": "Log Rejected Event",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1020, 420]
     },
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={\n  \"ok\": false,\n  \"message\": \"Missing required email field\"\n}",
+        "responseBody": "={\n  \"success\": false,\n  \"message\": \"Lead capture payload rejected\"\n}",
         "options": {
           "responseCode": 400
         }
       },
-      "id": "respond_missing_email",
-      "name": "Respond Missing Email",
+      "id": "respond_rejected",
+      "name": "Respond Rejected",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1260, 380]
+      "position": [1260, 420]
     }
   ],
   "connections": {
     "Lead Capture Webhook": {
-      "main": [[{"node": "Normalize Lead Data", "type": "main", "index": 0}]]
+      "main": [[{ "node": "Normalize Tally FORM_RESPONSE", "type": "main", "index": 0 }]]
     },
-    "Normalize Lead Data": {
-      "main": [[{"node": "Email Exists?", "type": "main", "index": 0}]]
+    "Normalize Tally FORM_RESPONSE": {
+      "main": [[{ "node": "Valid FORM_RESPONSE With Email?", "type": "main", "index": 0 }]]
     },
-    "Email Exists?": {
+    "Valid FORM_RESPONSE With Email?": {
       "main": [
-        [{"node": "Telegram Lead Alert", "type": "main", "index": 0}],
-        [{"node": "Telegram Missing Email Alert", "type": "main", "index": 0}]
+        [{ "node": "Write Notion CRM Lead", "type": "main", "index": 0 }],
+        [{ "node": "Log Rejected Event", "type": "main", "index": 0 }]
       ]
     },
-    "Telegram Lead Alert": {
-      "main": [[{"node": "Respond Success", "type": "main", "index": 0}]]
+    "Write Notion CRM Lead": {
+      "main": [[{ "node": "Log Lead Event", "type": "main", "index": 0 }]]
     },
-    "Telegram Missing Email Alert": {
-      "main": [[{"node": "Respond Missing Email", "type": "main", "index": 0}]]
+    "Log Lead Event": {
+      "main": [[{ "node": "Send Lead Alert", "type": "main", "index": 0 }]]
+    },
+    "Send Lead Alert": {
+      "main": [[{ "node": "Respond Success", "type": "main", "index": 0 }]]
+    },
+    "Log Rejected Event": {
+      "main": [[{ "node": "Respond Rejected", "type": "main", "index": 0 }]]
     }
   },
-  "settings": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
   "pinData": {}
 }

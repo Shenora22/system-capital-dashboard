@@ -8,12 +8,25 @@ type TallyField = {
   options?: Array<{ id?: string; text?: string; label?: string; value?: string }>;
 };
 
+type PaymentNextStep = {
+  type: "stripe_payment_link" | "booking_link" | "manual_follow_up";
+  label: string;
+  amount?: number;
+  url?: string;
+};
+
 type NormalizedLead = {
   name: string;
   email: string;
   business: string;
   package: string;
+  budget: string;
+  need: string;
   source: string;
+  leadStatus: string;
+  status: string;
+  paymentStatus: string;
+  paymentNextStep: PaymentNextStep;
   receivedAt: string;
   eventType: string;
   formId?: string;
@@ -21,6 +34,34 @@ type NormalizedLead = {
 };
 
 const PRODUCTION_WEBHOOK_PATH = "/webhook/system-capital-lead";
+const LEAD_STATUS_NEW_LEAD = "New Lead";
+const PAYMENT_STATUS_PENDING = "Pending";
+const STARTER_PAYMENT_LINK = "https://buy.stripe.com/...";
+const PRO_PAYMENT_LINK = "https://buy.stripe.com/...";
+const CUSTOM_BUILD_BOOKING_LINK = "https://cal.com/your-booking-link";
+
+const PACKAGE_NEXT_STEPS: Record<string, Omit<PaymentNextStep, "url"> & { envKey: string; productionUrl: string }> = {
+  starter: {
+    type: "stripe_payment_link",
+    label: "Starter System",
+    amount: 49,
+    envKey: "STRIPE_PAYMENT_LINK_STARTER",
+    productionUrl: STARTER_PAYMENT_LINK,
+  },
+  pro: {
+    type: "stripe_payment_link",
+    label: "Pro Follow-Up System",
+    amount: 149,
+    envKey: "STRIPE_PAYMENT_LINK_PRO",
+    productionUrl: PRO_PAYMENT_LINK,
+  },
+  custom: {
+    type: "booking_link",
+    label: "Custom Build",
+    envKey: "CUSTOM_BUILD_BOOKING_LINK",
+    productionUrl: CUSTOM_BUILD_BOOKING_LINK,
+  },
+};
 
 function asString(value: unknown): string {
   if (value === null || value === undefined) {
@@ -41,6 +82,48 @@ function asString(value: unknown): string {
 
 function normalizeKey(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
+
+function packageKey(value: string): keyof typeof PACKAGE_NEXT_STEPS | "unknown" {
+  const normalized = normalizeKey(value);
+
+  if (normalized.includes("starter") || normalized === "49") {
+    return "starter";
+  }
+
+  if (normalized.includes("pro") || normalized.includes("followup") || normalized === "149") {
+    return "pro";
+  }
+
+  if (normalized.includes("custom") || normalized.includes("build") || normalized.includes("booking")) {
+    return "custom";
+  }
+
+  return "unknown";
+}
+
+function canonicalPackageName(value: string): string {
+  const key = packageKey(value);
+  return key === "unknown" ? value : PACKAGE_NEXT_STEPS[key].label;
+}
+
+function paymentNextStepForPackage(selectedPackage: string): PaymentNextStep {
+  const key = packageKey(selectedPackage);
+
+  if (key === "unknown") {
+    return {
+      type: "manual_follow_up",
+      label: "Manual Follow-Up",
+      url: process.env.CUSTOM_BUILD_BOOKING_LINK ?? CUSTOM_BUILD_BOOKING_LINK,
+    };
+  }
+
+  const { envKey, productionUrl, ...nextStep } = PACKAGE_NEXT_STEPS[key];
+
+  return {
+    ...nextStep,
+    url: process.env[envKey] ?? productionUrl,
+  };
 }
 
 function fieldAnswer(field: TallyField): string {
@@ -92,13 +175,13 @@ function normalizeTallyLead(payload: Record<string, unknown>): NormalizedLead {
   const data = (payload.data as Record<string, unknown> | undefined) ?? {};
   const fields = {
     ...extractFields(payload),
-    ...Object.fromEntries(
-      Object.entries(payload).map(([key, value]) => [normalizeKey(key), asString(value)]),
-    ),
+    ...Object.fromEntries(Object.entries(payload).map(([key, value]) => [normalizeKey(key), asString(value)])),
   };
 
+  const rawPackage = firstPresent(fields, ["package", "select package", "selected package", "plan", "offer"], "Not provided");
+  const selectedPackage = canonicalPackageName(rawPackage);
   const source =
-    firstPresent(fields, ["source", "utm_source", "form", "form name"], "") ||
+    firstPresent(fields, ["source", "utm_source", "utm source", "referral source", "form", "form name"], "") ||
     asString(data.formName) ||
     "Tally";
 
@@ -106,8 +189,14 @@ function normalizeTallyLead(payload: Record<string, unknown>): NormalizedLead {
     name: firstPresent(fields, ["name", "full name", "full_name", "contact name"], "Unknown Lead"),
     email: firstPresent(fields, ["email", "email address", "contact email"], "").toLowerCase(),
     business: firstPresent(fields, ["business", "company", "business name", "company name"], "Not provided"),
-    package: firstPresent(fields, ["package", "select package", "plan", "offer"], "Not provided"),
+    package: selectedPackage,
+    budget: firstPresent(fields, ["budget", "monthly budget", "project budget", "estimated budget"], "Not provided"),
+    need: firstPresent(fields, ["need", "primary need", "what do you need", "use case", "project need"], "Not provided"),
     source,
+    leadStatus: LEAD_STATUS_NEW_LEAD,
+    status: LEAD_STATUS_NEW_LEAD,
+    paymentStatus: PAYMENT_STATUS_PENDING,
+    paymentNextStep: paymentNextStepForPackage(selectedPackage),
     receivedAt: new Date().toISOString(),
     eventType: asString(payload.eventType ?? payload.type ?? payload.event ?? "FORM_RESPONSE"),
     formId: asString(data.formId ?? payload.formId) || undefined,

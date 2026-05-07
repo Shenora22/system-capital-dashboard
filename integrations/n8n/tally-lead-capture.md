@@ -1,14 +1,60 @@
-# Tally Lead Capture Production Setup
+# Tally Lead Capture + Payment Flow Production Setup
 
-Use a single reliable production path:
+Use a single reliable production path while keeping Tally as the intake form:
 
 ```text
-Tally FORM_RESPONSE webhook → Next.js /api/tally-lead → n8n production webhook → Notion CRM / Leads → lead alert → n8n execution log
+Tally FORM_RESPONSE webhook → Next.js /api/tally-lead → n8n production webhook → Notion CRM / Leads
+Tally post-submit redirect → /lead/next-step → Stripe Payment Link or custom booking link
+Stripe/n8n confirmation → Notion CRM status/payment status update
 ```
 
 Do **not** rely on Tally's native Notion mapping as the primary CRM path. It can remain disabled or secondary only; the production source of truth is webhook → n8n/API → Notion.
 
-## 1. n8n workflow
+## 1. Tally intake fields
+
+Keep Tally as the form experience and include these fields in the intake:
+
+- `name`
+- `email`
+- `business`
+- `package`
+- `budget`
+- `need`
+- `source`
+
+Recommended package choices:
+
+- `Starter System` — $49 Stripe Payment Link
+- `Pro Follow-Up System` — $149 Stripe Payment Link
+- `Custom Build` — booking link
+
+## 2. Post-submit redirect
+
+Configure Tally's thank-you/redirect behavior to send users to the dashboard next-step page after submission:
+
+```text
+https://<your-dashboard-domain>/lead/next-step?package=<tally-package-answer>
+```
+
+The next-step page keeps payment status messaging at `Pending` and routes the user to the correct payment or booking action based on the package query string.
+
+## 3. Payment and booking link environment
+
+Set the server-side variables for API/n8n payloads and, if the Next.js page should render clickable public links at build/runtime, set the matching `NEXT_PUBLIC_` variables too:
+
+```bash
+STRIPE_PAYMENT_LINK_STARTER=https://buy.stripe.com/<starter-link>
+STRIPE_PAYMENT_LINK_PRO=https://buy.stripe.com/<pro-link>
+CUSTOM_BUILD_BOOKING_LINK=https://<booking-link>
+
+NEXT_PUBLIC_STRIPE_PAYMENT_LINK_STARTER=https://buy.stripe.com/<starter-link>
+NEXT_PUBLIC_STRIPE_PAYMENT_LINK_PRO=https://buy.stripe.com/<pro-link>
+NEXT_PUBLIC_CUSTOM_BUILD_BOOKING_LINK=https://<booking-link>
+```
+
+Payment status should remain `Pending` until Stripe and/or n8n confirms the payment. For the custom package, n8n can move the CRM status to `Booked` after the booking event confirms.
+
+## 4. n8n workflow
 
 Import or update `automation/n8n/workflows/lead-capture-alert-template-v2.json`.
 
@@ -29,7 +75,7 @@ https://<your-n8n-host>/webhook/system-capital-lead
 
 The test URL only works while n8n is actively listening for test events in the editor. It is not reliable for production Tally submissions.
 
-## 2. Next.js API environment
+## 5. Next.js API environment
 
 Configure one of these environment options for the dashboard API:
 
@@ -45,7 +91,7 @@ N8N_BASE_URL=https://<your-n8n-host>
 
 The API refuses `/webhook-test/` URLs and requires the final path to be `/webhook/system-capital-lead`.
 
-## 3. Notion CRM / Leads
+## 6. Notion CRM / Leads
 
 In n8n, configure the `Write Notion CRM Lead` node with:
 
@@ -56,13 +102,29 @@ In n8n, configure the `Write Notion CRM Lead` node with:
   - `Email` (email)
   - `Business` (text)
   - `Package` (select)
+  - `Budget` (text)
+  - `Need` (text)
   - `Source` (select)
   - `Status` (select)
+  - `Payment Status` (select)
+  - `Payment Next Step` (select)
+  - `Payment Link` (url)
+  - `Payment Amount` (number)
   - `Received At` (date)
   - `Lead ID` (text)
   - `Tally Response ID` (text)
 
-## 4. Lead alert
+Use these `Status` select options in the dashboard/CRM:
+
+- `New Lead`
+- `Payment Pending`
+- `Paid`
+- `Booked`
+- `Follow-Up Needed`
+
+Use `Pending` as the initial `Payment Status` option until a Stripe/n8n confirmation changes it.
+
+## 7. Lead alert
 
 Configure the `Send Lead Alert` node with Telegram credentials and set:
 
@@ -72,7 +134,7 @@ LEAD_ALERT_CHAT_ID=<your-chat-id>
 
 If a different alert channel is preferred, replace this node while keeping it after `Write Notion CRM Lead` and before `Respond Success`.
 
-## 5. Exact URL to put in Tally
+## 8. Exact URL to put in Tally
 
 Point the Tally webhook to the deployed dashboard API, not directly to Notion:
 
@@ -86,9 +148,19 @@ Tally should send `FORM_RESPONSE` payloads. The API and n8n workflow normalize t
 - `email`
 - `business`
 - `package`
+- `budget`
+- `need`
 - `source`
 
-## 6. Smoke test
+## 9. Stripe/n8n confirmation handoff
+
+Create a separate Stripe Payment Link / checkout confirmation workflow in n8n that updates the Notion CRM record by `Lead ID`, `Tally Response ID`, or email:
+
+- Successful Starter or Pro payment → set `Status` to `Paid` and `Payment Status` to `Paid`.
+- Custom booking confirmation → set `Status` to `Booked`.
+- No payment or no booking after the follow-up window → set `Status` to `Follow-Up Needed`.
+
+## 10. Smoke test
 
 With the Next.js app running locally, run:
 
@@ -111,7 +183,9 @@ curl -i -X POST 'http://localhost:3000/api/tally-lead?dryRun=1' \
         { "key": "name", "label": "Name", "value": "Test Lead" },
         { "key": "email", "label": "Email", "value": "test.lead@example.com" },
         { "key": "business", "label": "Business", "value": "Example Co" },
-        { "key": "package", "label": "Select Package", "value": "Pro" },
+        { "key": "package", "label": "Select Package", "value": "Pro Follow-Up System" },
+        { "key": "budget", "label": "Budget", "value": "$500-$1,000" },
+        { "key": "need", "label": "Need", "value": "Automated payment and booking follow-up" },
         { "key": "source", "label": "Source", "value": "Tally smoke test" }
       ]
     }

@@ -8,7 +8,7 @@ const highlights = [
   {
     title: "Signal Engine",
     description: "Track macro, liquidity, and risk conditions in one place.",
-    href: "/signal-engine",
+    href: "/signals",
   },
   {
     title: "Command Center",
@@ -16,9 +16,9 @@ const highlights = [
     href: "/command-center",
   },
   {
-    title: "Ask Alora",
-    description: "Quick intervention chat for questions, analysis, and actions.",
-    href: "/ask-alora",
+    title: "Roadmap",
+    description: "Track what is shipping now, next, and soon across the dashboard.",
+    href: "/roadmap",
   },
 ];
   export default function Home() {
@@ -44,10 +44,10 @@ className="rounded-2xl border border-white/10 bg-white/5 px-6 py-3 text-base fon
 Enter Command Center
 </Link>
 <Link
-href="/command-center#ask-alora"
+href="/mission-control"
 className="rounded-2xl border border-white/5 px-6 py-3 text-base text-slate-200 transition hover:border-white/30"
 >
-Ask Alora
+Open Mission Control
 </Link>
 </div>
 </section>

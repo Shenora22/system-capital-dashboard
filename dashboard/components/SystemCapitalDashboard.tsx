@@ -183,6 +183,68 @@ export default function SystemCapitalDashboard() {
             </Link>
           ))}
         </div>
+
+        <section className="scd-roadmap scd-glass" aria-label="Roadmap and Mission Control">
+          <div className="scd-roadmap-header">
+            <div>
+              <p className="scd-kicker">Roadmap / Mission Control</p>
+              <h2>Operating roadmap across growth, automation, AI ops, and drone operations.</h2>
+            </div>
+            <span>5 active lanes</span>
+          </div>
+
+          <div className="scd-roadmap-grid">
+            {roadmapTracks.map((track) => (
+              <article className="scd-roadmap-card" key={track.title}>
+                <div className="scd-roadmap-card-header">
+                  <h3>{track.title}</h3>
+                  <span>{track.priority}</span>
+                </div>
+                <div className="scd-roadmap-status">
+                  <span>Status</span>
+                  <strong>{track.status}</strong>
+                </div>
+
+                <div className="scd-roadmap-section">
+                  <p>Milestones</p>
+                  <div className="scd-roadmap-tags">
+                    {track.milestones.map((milestone) => (
+                      <span key={milestone}>{milestone}</span>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="scd-roadmap-columns">
+                  <div className="scd-roadmap-section">
+                    <p>Blockers</p>
+                    <ul>
+                      {track.blockers.map((blocker) => (
+                        <li key={blocker}>{blocker}</li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div className="scd-roadmap-section">
+                    <p>Technical dependencies</p>
+                    <ul>
+                      {track.dependencies.map((dependency) => (
+                        <li key={dependency}>{dependency}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+
+                <div className="scd-roadmap-section">
+                  <p>Revenue validation checkpoints</p>
+                  <ul>
+                    {track.revenueCheckpoints.map((checkpoint) => (
+                      <li key={checkpoint}>{checkpoint}</li>
+                    ))}
+                  </ul>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
       </section>
 
       <aside className="scd-activity scd-glass" aria-label="Live activity feed">
@@ -218,8 +280,11 @@ export default function SystemCapitalDashboard() {
         .scd-shell {
           --scd-bg: #030711;
           --scd-panel: rgba(12, 18, 32, 0.74);
+          --scd-panel-strong: rgba(15, 23, 42, 0.88);
           --scd-line: rgba(125, 211, 252, 0.18);
+          --scd-line-strong: rgba(34, 211, 238, 0.72);
           --scd-cyan: #22d3ee;
+          --scd-blue: #38bdf8;
           --scd-violet: #8b5cf6;
           --scd-text: #f8fafc;
           --scd-muted: #94a3b8;
@@ -266,15 +331,17 @@ export default function SystemCapitalDashboard() {
         .scd-brand {
           display: flex;
           align-items: center;
-          gap: 12px;
-          color: inherit;
-          text-decoration: none;
-          font-weight: 700;
+          gap: 14px;
+          font-weight: 900;
+          letter-spacing: -0.04em;
         }
 
-        .scd-brand strong,
-        .scd-brand span span {
+        .scd-brand strong {
           display: block;
+          color: var(--scd-cyan);
+          font-size: 0.78rem;
+          letter-spacing: 0.18em;
+          text-transform: uppercase;
         }
 
         .scd-brand-mark {
@@ -290,38 +357,48 @@ export default function SystemCapitalDashboard() {
 
         .scd-nav {
           display: grid;
-          gap: 8px;
+          gap: 9px;
+        }
+
+        .scd-nav a,
+        .scd-sidebar-card,
+        .scd-glass {
+          border: 1px solid var(--scd-line);
+          background: linear-gradient(145deg, rgba(15, 23, 42, 0.72), rgba(15, 23, 42, 0.38));
+          backdrop-filter: blur(22px);
         }
 
         .scd-nav a {
-          border: 1px solid rgba(255, 255, 255, 0.07);
-          border-radius: 18px;
-          color: #cbd5e1;
-          padding: 10px 12px;
-          text-decoration: none;
-          transition: border-color 180ms ease, color 180ms ease, background 180ms ease;
+          border-color: transparent;
+          border-radius: 16px;
+          color: var(--scd-muted);
+          padding: 12px 14px;
+          transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease, color 180ms ease, background 180ms ease;
         }
 
         .scd-nav a:hover {
-          border-color: rgba(34, 211, 238, 0.52);
-          background: rgba(34, 211, 238, 0.08);
-          color: #fff;
+          transform: translateX(4px) scale(1.02);
+          border-color: var(--scd-line-strong);
+          background: rgba(34, 211, 238, 0.1);
+          box-shadow: 0 0 24px rgba(34, 211, 238, 0.2);
+          color: var(--scd-text);
         }
 
         .scd-sidebar-card {
           margin-top: auto;
-          border: 1px solid rgba(34, 211, 238, 0.18);
-          border-radius: 24px;
-          background: rgba(8, 13, 28, 0.72);
-          padding: 18px;
-          color: var(--scd-muted);
+          border-radius: 26px;
+          padding: 20px;
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
         }
 
         .scd-sidebar-card span,
-        .scd-kicker {
+        .scd-kicker,
+        .scd-module span {
           color: var(--scd-cyan);
-          font-size: 11px;
-          letter-spacing: 0.32em;
+          font-family: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+          font-size: 0.72rem;
+          font-weight: 800;
+          letter-spacing: 0.2em;
           text-transform: uppercase;
         }
 
@@ -369,17 +446,14 @@ export default function SystemCapitalDashboard() {
 
         .scd-command-card div {
           border: 1px solid rgba(255, 255, 255, 0.08);
-          border-radius: 22px;
-          background: rgba(2, 6, 23, 0.38);
-          padding: 18px;
+          border-radius: 20px;
+          background: rgba(2, 6, 23, 0.44);
+          padding: 16px;
         }
 
-        .scd-command-card span,
-        .scd-module span,
-        .scd-feed-item p,
-        .scd-feed-item small {
+        .scd-command-card span {
           color: var(--scd-muted);
-          font-size: 12px;
+          font-size: 0.78rem;
         }
 
         .scd-command-card strong {
@@ -422,83 +496,88 @@ export default function SystemCapitalDashboard() {
 
         .scd-module-grid {
           display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 16px;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 18px;
         }
 
         .scd-module {
-          border-radius: 28px;
-          min-height: 196px;
+          min-height: 230px;
           padding: 24px;
-          color: inherit;
-          text-decoration: none;
-          transition: transform 180ms ease, border-color 180ms ease;
+          transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
         }
 
         .scd-module:hover {
-          transform: translateY(-4px);
-          border-color: rgba(34, 211, 238, 0.48);
+          transform: translateY(-5px) scale(1.018);
+          border-color: var(--scd-line-strong);
+          background: linear-gradient(145deg, rgba(15, 23, 42, 0.92), rgba(8, 47, 73, 0.46));
+          box-shadow: 0 0 34px rgba(34, 211, 238, 0.26), 0 28px 90px rgba(0, 0, 0, 0.44);
         }
 
         .scd-module strong {
           display: block;
-          margin-top: 16px;
-          font-size: 42px;
-          letter-spacing: -0.05em;
+          margin-top: 28px;
+          font-size: clamp(2.2rem, 4vw, 3.7rem);
+          letter-spacing: -0.08em;
         }
 
         .scd-module p {
-          color: #cbd5e1;
-          min-height: 48px;
-          line-height: 1.5;
+          margin: 14px 0 0;
         }
 
         .scd-module em {
-          color: var(--scd-cyan);
+          display: inline-flex;
+          margin-top: 22px;
+          color: #bae6fd;
           font-style: normal;
-          font-weight: 700;
+          font-weight: 800;
         }
 
         .scd-activity {
-          position: sticky;
-          top: 0;
-          z-index: 1;
-          min-height: 100vh;
-          padding: 28px;
-          border-radius: 0;
-          border-block: 0;
-          border-right: 0;
+          position: fixed;
+          inset: 28px 28px 28px auto;
+          z-index: 8;
+          width: 312px;
+          display: flex;
+          flex-direction: column;
+          gap: 22px;
+          padding: 24px;
         }
 
         .scd-activity-header {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          gap: 16px;
-          margin-bottom: 18px;
+          gap: 12px;
         }
 
         .scd-activity-header span {
+          border: 1px solid rgba(34, 211, 238, 0.34);
           border-radius: 999px;
-          background: rgba(16, 185, 129, 0.12);
-          color: #bbf7d0;
+          color: #bae6fd;
           padding: 6px 10px;
-          font-size: 12px;
+          font-size: 0.75rem;
         }
 
         .scd-feed-list {
           display: grid;
-          gap: 12px;
+          gap: 14px;
         }
 
         .scd-feed-item {
           display: grid;
-          grid-template-columns: 12px minmax(0, 1fr);
+          grid-template-columns: auto 1fr;
           gap: 12px;
-          border: 1px solid rgba(255, 255, 255, 0.07);
-          border-radius: 22px;
-          background: rgba(2, 6, 23, 0.34);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          border-radius: 20px;
+          background: rgba(2, 6, 23, 0.46);
           padding: 14px;
+          transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+        }
+
+        .scd-feed-item:hover {
+          transform: scale(1.018);
+          border-color: var(--scd-line-strong);
+          box-shadow: 0 0 24px rgba(34, 211, 238, 0.18);
         }
 
         .scd-feed-dot {

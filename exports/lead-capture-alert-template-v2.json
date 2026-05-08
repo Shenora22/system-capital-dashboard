@@ -169,7 +169,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={\n  \"ok\": true,\n  \"message\": \"Lead received\",\n  \"leadId\": \"{{$json.leadId}}\"\n}",
+        "responseBody": "={\n  \"success\": true,\n  \"message\": \"Lead captured successfully\"\n}",
         "options": {}
       },
       "id": "respond_success",
@@ -197,16 +197,11 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={\n  \"ok\": false,\n  \"message\": \"Missing required email field\"\n}",
+        "responseBody": "={\n  \"success\": false,\n  \"message\": \"Lead capture payload rejected\"\n}",
         "options": {
           "responseCode": 400
         }
       },
-      "id": "respond_missing_email",
-      "name": "Respond Missing Email",
-      "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1,
-      "position": [1260, 380]
       "id": "respond_rejected",
       "name": "Respond Rejected",
       "type": "n8n-nodes-base.respondToWebhook",

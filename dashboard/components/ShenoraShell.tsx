@@ -8,7 +8,7 @@ const navItems = [
   { label: "Roadmap", href: "/roadmap", key: "roadmap" },
   { label: "Operations", href: "/operations", key: "operations" },
   { label: "Projects", href: "/projects", key: "projects" },
-  
+
   { label: "Agents", href: "/agents", key: "agents" },
   { label: "Automation", href: "/automation", key: "automation" },
   { label: "Signals", href: "/signals", key: "signals" },

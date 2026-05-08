@@ -13,7 +13,7 @@ const payload = {
       { key: "name", label: "Name", value: "Test Lead" },
       { key: "email", label: "Email", value: "test.lead@example.com" },
       { key: "business", label: "Business", value: "Example Co" },
-      { key: "package", label: "Package", value: "Pro Follow-Up System ($149)" },
+      { key: "package", label: "Choose Your Package", value: "Pro Follow-Up System ($149)" },
       { key: "budget", label: "Budget", value: "$500-$1,000" },
       { key: "need", label: "Need", value: "Automated payment and booking follow-up" },
       { key: "source", label: "Source", value: "Tally dry-run test" }

@@ -22,22 +22,46 @@ Keep Tally as the form experience and include these fields in the production int
 | Need | `need` | Recommended | Maps to Notion `Need`. |
 | Budget | `budget` | Recommended | Maps to Notion `Budget`. |
 | Source | `source` | Recommended | Maps to Notion `Source`; defaults to Tally form name when blank. |
-| Package | `package` | Yes | Single-select package selector used for payment routing and Notion `Package`. |
+| Choose Your Package | `package` or label alias `Choose Your Package` | Yes | Single-select package selector used for payment routing and Notion `Package`. |
 
-Configure the Tally `Package` field as a required single-select/dropdown with exactly these choices:
+Configure the production Tally field with these exact UI settings:
 
-- `Starter System ($49)`
-- `Pro Follow-Up System ($149)`
-- `Custom Build`
+- Field label: `Choose Your Package`
+- Field type: Dropdown or Multiple Choice
+- Selection mode: single select
+- Required: yes
+- Options:
+  - `Starter System ($49)`
+  - `Pro Follow-Up System ($149)`
+  - `Custom Build`
 
-The API and n8n normalizer canonicalize `Starter System ($49)` to `Starter System` and `Pro Follow-Up System ($149)` to `Pro Follow-Up System` before storing the value in Notion.
+The API and n8n normalizer accept either the backend key `package` or the Tally label `Choose Your Package`, then canonicalize `Starter System ($49)` to `Starter System` and `Pro Follow-Up System ($149)` to `Pro Follow-Up System` before storing the value in Notion.
+
+### Manual production Tally UI update
+
+If this repository is the only available environment, the live Tally form cannot be edited automatically because Tally credentials and the public form edit URL are not stored here. Make this UI-only change directly in Tally:
+
+1. Open the production intake form in Tally's editor.
+2. Add a new required field near the business/need/budget questions.
+3. Set the field label to exactly `Choose Your Package`.
+4. Set the field type to `Dropdown` or `Multiple Choice`.
+5. Ensure it is single-select, not multi-select.
+6. Add exactly these options:
+   - `Starter System ($49)`
+   - `Pro Follow-Up System ($149)`
+   - `Custom Build`
+7. Publish the form.
+8. In the Tally webhook settings, keep the webhook target pointed at `https://<your-dashboard-domain>/api/tally-lead`.
+9. In the Tally redirect/thank-you settings, redirect to `https://<your-dashboard-domain>/lead/next-step?package=<Choose Your Package answer>` using Tally's answer piping/variable insertion for the `Choose Your Package` answer.
+10. Submit one production test lead for each package and confirm the resulting `/lead/next-step` redirect target.
+
 
 ## 2. Post-submit redirect
 
 Configure Tally's thank-you/redirect behavior to send users to the dashboard next-step page after submission:
 
 ```text
-https://<your-dashboard-domain>/lead/next-step?package=<tally-package-answer>
+https://<your-dashboard-domain>/lead/next-step?package=<Choose Your Package answer>
 ```
 
 The next-step route reads the package query string and immediately redirects the user to the matching configured Stripe Payment Link or booking URL. If an environment override is invalid, it shows a safe configuration page and keeps payment status messaging at `Pending`.
@@ -187,7 +211,7 @@ curl -i -X POST 'http://localhost:3000/api/tally-lead?dryRun=1' \
         { "key": "name", "label": "Name", "value": "Test Lead" },
         { "key": "email", "label": "Email", "value": "test.lead@example.com" },
         { "key": "business", "label": "Business", "value": "Example Co" },
-        { "key": "package", "label": "Package", "value": "Pro Follow-Up System ($149)" },
+        { "key": "package", "label": "Choose Your Package", "value": "Pro Follow-Up System ($149)" },
         { "key": "budget", "label": "Budget", "value": "$500-$1,000" },
         { "key": "need", "label": "Need", "value": "Automated payment and booking follow-up" },
         { "key": "source", "label": "Source", "value": "Tally smoke test" }
@@ -217,4 +241,5 @@ TALLY_LEAD_BASE_URL=https://<your-dashboard-domain> \
 npm run test:tally-production-flow
 ```
 
+The verification script checks that the live public Tally form HTML contains the `Choose Your Package` label and all three package choices (`Starter System ($49)`, `Pro Follow-Up System ($149)`, and `Custom Build`) and that `/lead/next-step` redirects each package to the expected production Stripe or booking URL. If `TALLY_PUBLIC_FORM_URL` is omitted, the script still verifies dashboard payment routing but reports the live Tally form check as skipped.
 The verification script checks that the live public Tally form HTML contains all three package choices (`Starter System ($49)`, `Pro Follow-Up System ($149)`, and `Custom Build`) and that `/lead/next-step` redirects each package to the expected production Stripe or booking URL. If `TALLY_PUBLIC_FORM_URL` is omitted, the script still verifies dashboard payment routing but reports the live Tally form check as skipped.

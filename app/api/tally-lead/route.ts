@@ -2,6 +2,7 @@ import { logAgentEvent } from "@/logging/agentLogs";
 
 export const runtime = "nodejs";
 
+
 type TallyField = {
   key?: string;
   label?: string;
@@ -9,6 +10,7 @@ type TallyField = {
   name?: string;
   value?: unknown;
   answer?: unknown;
+
 };
 
 type TallyPayload = {
@@ -28,286 +30,291 @@ type TallyPayload = {
 };
 
 type Lead = {
+
+  options?: Array<{ id?: string; text?: string; label?: string; value?: string }>;
+};
+
+type PaymentNextStep = {
+  type: "stripe_payment_link" | "booking_link" | "manual_follow_up";
+  label: string;
+  amount?: number;
+  url?: string;
+};
+
+type NormalizedLead = {
+
   name: string;
   email: string;
   business: string;
   package: string;
+  budget: string;
+  need: string;
   source: string;
+  leadStatus: string;
+  status: string;
+  paymentStatus: string;
+  paymentNextStep: PaymentNextStep;
   receivedAt: string;
+  eventType: string;
+  formId?: string;
+  responseId?: string;
 };
 
-type NotionPropertyConfig = {
-  id: string;
-  name: string;
-  type: string;
+const PRODUCTION_WEBHOOK_PATH = "/webhook/system-capital-lead";
+const LEAD_STATUS_NEW_LEAD = "New Lead";
+const PAYMENT_STATUS_PENDING = "Pending";
+const STARTER_PAYMENT_LINK = "https://buy.stripe.com/...";
+const PRO_PAYMENT_LINK = "https://buy.stripe.com/...";
+const CUSTOM_BUILD_BOOKING_LINK = "https://cal.com/your-booking-link";
+
+const PACKAGE_NEXT_STEPS: Record<string, Omit<PaymentNextStep, "url"> & { envKey: string; productionUrl: string }> = {
+  starter: {
+    type: "stripe_payment_link",
+    label: "Starter System",
+    amount: 49,
+    envKey: "STRIPE_PAYMENT_LINK_STARTER",
+    productionUrl: STARTER_PAYMENT_LINK,
+  },
+  pro: {
+    type: "stripe_payment_link",
+    label: "Pro Follow-Up System",
+    amount: 149,
+    envKey: "STRIPE_PAYMENT_LINK_PRO",
+    productionUrl: PRO_PAYMENT_LINK,
+  },
+  custom: {
+    type: "booking_link",
+    label: "Custom Build",
+    envKey: "CUSTOM_BUILD_BOOKING_LINK",
+    productionUrl: CUSTOM_BUILD_BOOKING_LINK,
+  },
 };
 
-type NotionDatabase = {
-  properties: Record<string, NotionPropertyConfig>;
-};
-
-const NOTION_API_VERSION = "2022-06-28";
-const LEAD_FIELDS = ["name", "email", "business", "package", "source"] as const;
-
-const FIELD_ALIASES: Record<(typeof LEAD_FIELDS)[number], string[]> = {
-  name: ["name", "full name", "your name", "contact name"],
-  email: ["email", "email address", "work email"],
-  business: ["business", "business name", "company", "company name", "organization"],
-  package: ["package", "plan", "tier", "service package", "selected package"],
-  source: ["source", "lead source", "referral source", "how did you hear about us"],
-};
-
-function normalizeKey(value: string) {
-  return value.toLowerCase().replace(/[^a-z0-9]/g, "");
-}
-
-function stringifyValue(value: unknown) {
+function asString(value: unknown): string {
   if (value === null || value === undefined) {
     return "";
   }
 
   if (Array.isArray(value)) {
-    return value.map(stringifyValue).filter(Boolean).join(", ");
+    return value.map(asString).filter(Boolean).join(", ");
   }
 
   if (typeof value === "object") {
-    const maybeOption = value as { label?: unknown; name?: unknown; value?: unknown; text?: unknown };
-    return stringifyValue(maybeOption.label ?? maybeOption.name ?? maybeOption.value ?? maybeOption.text ?? JSON.stringify(value));
+    const record = value as Record<string, unknown>;
+    return asString(record.text ?? record.label ?? record.value ?? JSON.stringify(value));
   }
 
   return String(value).trim();
 }
 
-function extractFields(payload: TallyPayload) {
-  const fields = new Map<string, string>();
-
-  for (const fieldName of LEAD_FIELDS) {
-    const value = stringifyValue(payload[fieldName]);
-    if (value) {
-      fields.set(fieldName, value);
-    }
-  }
-
-  const tallyFields = [
-    ...(payload.data?.fields ?? []),
-    ...(payload.fields ?? []),
-    ...(payload.response?.answers ?? []),
-  ];
-
-  for (const field of tallyFields) {
-    const rawKey = stringifyValue(field.key ?? field.label ?? field.title ?? field.name);
-    const value = stringifyValue(field.value ?? field.answer);
-    if (!rawKey || !value) {
-      continue;
-    }
-
-    const normalized = normalizeKey(rawKey);
-    const matchedField = LEAD_FIELDS.find((leadField) =>
-      FIELD_ALIASES[leadField].some((alias) => normalizeKey(alias) === normalized),
-    );
-    if (matchedField) {
-      fields.set(matchedField, value);
-    }
-  }
-
-  return fields;
+function normalizeKey(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, "");
 }
 
-function normalizeLead(payload: TallyPayload): Lead {
-  const fields = extractFields(payload);
+function packageKey(value: string): keyof typeof PACKAGE_NEXT_STEPS | "unknown" {
+  const normalized = normalizeKey(value);
+
+  if (normalized.includes("starter") || normalized === "49") {
+    return "starter";
+  }
+
+  if (normalized.includes("pro") || normalized.includes("followup") || normalized === "149") {
+    return "pro";
+  }
+
+  if (normalized.includes("custom") || normalized.includes("build") || normalized.includes("booking")) {
+    return "custom";
+  }
+
+  return "unknown";
+}
+
+function canonicalPackageName(value: string): string {
+  const key = packageKey(value);
+  return key === "unknown" ? value : PACKAGE_NEXT_STEPS[key].label;
+}
+
+function paymentNextStepForPackage(selectedPackage: string): PaymentNextStep {
+  const key = packageKey(selectedPackage);
+
+  if (key === "unknown") {
+    return {
+      type: "manual_follow_up",
+      label: "Manual Follow-Up",
+      url: process.env.CUSTOM_BUILD_BOOKING_LINK ?? CUSTOM_BUILD_BOOKING_LINK,
+    };
+  }
+
+  const { envKey, productionUrl, ...nextStep } = PACKAGE_NEXT_STEPS[key];
 
   return {
-    name: fields.get("name") || "Unknown",
-    email: (fields.get("email") || "").toLowerCase(),
-    business: fields.get("business") || "Unknown",
-    package: fields.get("package") || "Unknown",
-    source: fields.get("source") || "Tally",
-    receivedAt: new Date().toISOString(),
+    ...nextStep,
+    url: process.env[envKey] ?? productionUrl,
   };
 }
 
-function findProperty(database: NotionDatabase, preferredName: string) {
-  const normalizedPreferred = normalizeKey(preferredName);
+function fieldAnswer(field: TallyField): string {
+  const rawValue = field.value ?? field.answer;
 
-  return Object.values(database.properties).find((property) => normalizeKey(property.name) === normalizedPreferred);
-}
+  if (Array.isArray(rawValue) && field.options?.length) {
+    const optionMap = new Map(
+      field.options.map((option) => [option.id, option.text ?? option.label ?? option.value ?? option.id ?? ""]),
+    );
 
-function textProperty(type: string, value: string) {
-  switch (type) {
-    case "title":
-      return { title: [{ text: { content: value } }] };
-    case "rich_text":
-      return { rich_text: [{ text: { content: value } }] };
-    case "email":
-      return { email: value || null };
-    case "select":
-      return { select: value ? { name: value } : null };
-    case "multi_select":
-      return { multi_select: value ? [{ name: value }] : [] };
-    case "url":
-      return { url: value || null };
-    case "phone_number":
-      return { phone_number: value || null };
-    default:
-      return undefined;
-  }
-}
-
-function dateProperty(type: string, value: string) {
-  if (type === "date") {
-    return { date: { start: value } };
+    return rawValue.map((value) => optionMap.get(asString(value)) ?? asString(value)).filter(Boolean).join(", ");
   }
 
-  if (type === "created_time") {
-    return undefined;
-  }
-
-  return textProperty(type, value);
+  return asString(rawValue);
 }
 
-function buildNotionProperties(database: NotionDatabase, lead: Lead) {
-  const propertyInput: Record<string, unknown> = {};
-  const mapping: Array<[keyof Lead, string]> = [
-    ["name", "Name"],
-    ["email", "Email"],
-    ["business", "Business"],
-    ["package", "Package"],
-    ["source", "Source"],
-    ["receivedAt", "Received At"],
-  ];
+function extractFields(payload: Record<string, unknown>): Record<string, string> {
+  const fields = (payload.data as Record<string, unknown> | undefined)?.fields ?? payload.fields;
+  const normalizedFields: Record<string, string> = {};
 
-  for (const [leadField, notionName] of mapping) {
-    const property = findProperty(database, notionName);
-    if (!property) {
-      continue;
-    }
+  if (!Array.isArray(fields)) {
+    return normalizedFields;
+  }
 
-    const value = lead[leadField];
-    const notionValue = leadField === "receivedAt"
-      ? dateProperty(property.type, value)
-      : textProperty(property.type, value);
-    if (notionValue) {
-      propertyInput[property.name] = notionValue;
+  for (const field of fields as TallyField[]) {
+    const answer = fieldAnswer(field);
+    const aliases = [field.key, field.label, field.title, field.name].map((alias) => asString(alias)).filter(Boolean);
+
+    for (const alias of aliases) {
+      normalizedFields[normalizeKey(alias)] = answer;
     }
   }
 
-  if (!Object.values(database.properties).some((property) => property.type === "title" && propertyInput[property.name])) {
-    const titleProperty = Object.values(database.properties).find((property) => property.type === "title");
-    if (titleProperty) {
-      propertyInput[titleProperty.name] = textProperty("title", lead.name);
+  return normalizedFields;
+}
+
+function firstPresent(fields: Record<string, string>, aliases: string[], fallback = "Not provided"): string {
+  for (const alias of aliases) {
+    const value = fields[normalizeKey(alias)];
+    if (value) {
+      return value;
     }
   }
 
-  return propertyInput;
+  return fallback;
 }
 
-async function notionFetch<T>(path: string, token: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`https://api.notion.com/v1${path}`, {
-    ...init,
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-      "Notion-Version": NOTION_API_VERSION,
-      ...init?.headers,
-    },
-  });
+function normalizeTallyLead(payload: Record<string, unknown>): NormalizedLead {
+  const data = (payload.data as Record<string, unknown> | undefined) ?? {};
+  const fields = {
+    ...extractFields(payload),
+    ...Object.fromEntries(Object.entries(payload).map(([key, value]) => [normalizeKey(key), asString(value)])),
+  };
 
-  if (!response.ok) {
-    const errorBody = await response.text();
-    throw new Error(`Notion API error ${response.status}: ${errorBody}`);
+  const rawPackage = firstPresent(fields, ["package", "select package", "selected package", "plan", "offer"], "Not provided");
+  const selectedPackage = canonicalPackageName(rawPackage);
+  const source =
+    firstPresent(fields, ["source", "utm_source", "utm source", "referral source", "form", "form name"], "") ||
+    asString(data.formName) ||
+    "Tally";
+
+  return {
+    name: firstPresent(fields, ["name", "full name", "full_name", "contact name"], "Unknown Lead"),
+    email: firstPresent(fields, ["email", "email address", "contact email"], "").toLowerCase(),
+    business: firstPresent(fields, ["business", "company", "business name", "company name"], "Not provided"),
+    package: selectedPackage,
+    budget: firstPresent(fields, ["budget", "monthly budget", "project budget", "estimated budget"], "Not provided"),
+    need: firstPresent(fields, ["need", "primary need", "what do you need", "use case", "project need"], "Not provided"),
+    source,
+    leadStatus: LEAD_STATUS_NEW_LEAD,
+    status: LEAD_STATUS_NEW_LEAD,
+    paymentStatus: PAYMENT_STATUS_PENDING,
+    paymentNextStep: paymentNextStepForPackage(selectedPackage),
+    receivedAt: new Date().toISOString(),
+    eventType: asString(payload.eventType ?? payload.type ?? payload.event ?? "FORM_RESPONSE"),
+    formId: asString(data.formId ?? payload.formId) || undefined,
+    responseId: asString(data.responseId ?? payload.responseId) || undefined,
+  };
+}
+
+function n8nWebhookUrl(): string | null {
+  const explicitUrl = process.env.N8N_LEAD_WEBHOOK_URL;
+  const baseUrl = process.env.N8N_BASE_URL;
+  const url = explicitUrl ?? (baseUrl ? `${baseUrl.replace(/\/$/, "")}${PRODUCTION_WEBHOOK_PATH}` : null);
+
+  if (!url) {
+    return null;
   }
 
-  return response.json() as Promise<T>;
-}
+  if (url.includes("/webhook-test")) {
+    throw new Error("N8N_LEAD_WEBHOOK_URL must use the production /webhook/ path, not /webhook-test/.");
+  }
 
-async function writeLeadToNotion(lead: Lead, token: string, databaseId: string) {
-  const database = await notionFetch<NotionDatabase>(`/databases/${databaseId}`, token);
-  const properties = buildNotionProperties(database, lead);
+  if (!url.endsWith(PRODUCTION_WEBHOOK_PATH)) {
+    throw new Error(`N8N lead webhook must end with ${PRODUCTION_WEBHOOK_PATH}.`);
+  }
 
-  return notionFetch("/pages", token, {
-    method: "POST",
-    body: JSON.stringify({
-      parent: { database_id: databaseId },
-      properties,
-    }),
-  });
+  return url;
 }
 
 export async function POST(request: Request) {
-  let payload: TallyPayload;
-
   try {
-    payload = await request.json();
-  } catch {
-    return Response.json(
-      { success: false, error: "Invalid JSON payload." },
-      { status: 400 },
-    );
-  }
+    const payload = (await request.json()) as Record<string, unknown>;
+    const lead = normalizeTallyLead(payload);
+    const dryRun = new URL(request.url).searchParams.get("dryRun") === "1";
 
-  const lead = normalizeLead(payload);
+    if (lead.eventType !== "FORM_RESPONSE") {
+      return Response.json(
+        { success: false, message: "Ignored non-FORM_RESPONSE Tally event", eventType: lead.eventType },
+        { status: 202 },
+      );
+    }
 
-  logAgentEvent({
-    agent: "Growth Agent",
-    action: "Tally lead received",
-    result: `${lead.name} (${lead.email || "no email"}) from ${lead.business}`,
-    status: "info",
-    metadata: { lead },
-  });
+    if (!lead.email) {
+      return Response.json({ success: false, message: "Email required", lead }, { status: 400 });
+    }
 
-  if (!process.env.NOTION_TOKEN) {
-    return Response.json(
-      {
-        success: false,
-        error: "Missing NOTION_TOKEN environment variable. Add it before enabling the Tally lead webhook.",
-        lead,
-      },
-      { status: 500 },
-    );
-  }
-
-  if (!process.env.NOTION_LEADS_DATABASE_ID) {
-    return Response.json(
-      {
-        success: false,
-        error: "Missing NOTION_LEADS_DATABASE_ID environment variable. Add the target Notion leads database ID before enabling the Tally lead webhook.",
-        lead,
-      },
-      { status: 500 },
-    );
-  }
-
-  try {
-    const notionPage = await writeLeadToNotion(
-      lead,
-      process.env.NOTION_TOKEN,
-      process.env.NOTION_LEADS_DATABASE_ID,
-    );
-
-    return Response.json({
-      success: true,
-      lead,
-      notionPage,
-    });
-  } catch (error) {
-    console.error("[TALLY LEAD NOTION WRITE FAILED]", error);
-    console.log("[TALLY LEAD FALLBACK LOCAL LOG]", lead);
-
+    console.log("[TALLY_LEAD_RECEIVED]", lead);
     logAgentEvent({
-      agent: "Growth Agent",
-      action: "Tally lead Notion write failed",
-      result: error instanceof Error ? error.message : "Unknown Notion write error",
-      status: "error",
-      metadata: { lead },
+  agent: "Growth Agent",
+  action: "Tally lead received",
+  result: `${lead.name} (${lead.email || "no email"}) from ${lead.business}`,
+  status: "info",
+  metadata: { lead },
+});
+
+    if (dryRun) {
+      return Response.json({ success: true, message: "Lead captured successfully", dryRun: true, lead });
+    }
+
+    const webhookUrl = n8nWebhookUrl();
+
+    if (!webhookUrl) {
+      return Response.json(
+        { success: false, message: "N8N_LEAD_WEBHOOK_URL or N8N_BASE_URL is required", lead },
+        { status: 503 },
+      );
+    }
+
+    const n8nResponse = await fetch(webhookUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ ...lead, rawPayload: payload }),
     });
 
-    return Response.json(
-      {
-        success: false,
-        error: "Lead received, but writing to Notion failed. The lead was logged locally as a fallback.",
-        lead,
-      },
-      { status: 502 },
-    );
+    if (!n8nResponse.ok) {
+      const responseText = await n8nResponse.text();
+      console.error("[TALLY_LEAD_N8N_ERROR]", n8nResponse.status, responseText);
+
+      return Response.json(
+        { success: false, message: "n8n lead workflow rejected the lead", status: n8nResponse.status },
+        { status: 502 },
+      );
+    }
+
+    console.log("[TALLY_LEAD_FORWARDED]", { email: lead.email, webhookPath: PRODUCTION_WEBHOOK_PATH });
+
+    return Response.json({ success: true, message: "Lead captured successfully", lead });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to capture lead";
+    console.error("[TALLY_LEAD_ERROR]", error);
+
+    return Response.json({ success: false, message }, { status: 500 });
   }
 }

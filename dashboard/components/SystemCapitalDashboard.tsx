@@ -13,12 +13,18 @@ const navItems = [
   { label: "Operations", href: "/operations" },
   { label: "Drone Ops", href: "/drone" },
   { label: "Agents", href: "/agents" },
-  { label: "Automations", href: "/automation" },
+  { label: "Automation", href: "/automation" },
   { label: "Signals", href: "/signals" },
   { label: "Activity", href: "/activity" },
   { label: "Brand Kit", href: "/brand-kit" },
   { label: "Lead Payments", href: "/lead/next-step" },
   { label: "Settings", href: "/settings" },
+];
+
+const commandStats = [
+  { label: "Live agents", value: "12" },
+  { label: "Runs today", value: "284" },
+  { label: "Open decisions", value: "9" },
 ];
 
 const moduleCards = [
@@ -45,6 +51,12 @@ const moduleCards = [
     href: "/mission-control",
     metric: "Green",
     detail: "Route health, launch readiness, and operator escalation links.",
+  },
+  {
+    title: "Operations",
+    href: "/operations",
+    metric: "Ops",
+    detail: "Operating cadence, governance routines, and execution accountability.",
   },
   {
     title: "Agents",
@@ -97,7 +109,7 @@ const moduleCards = [
   {
     title: "Settings",
     href: "/settings",
-    metric: "Ops",
+    metric: "Config",
     detail: "Workspace configuration, operating preferences, and governance controls.",
   },
 ];
@@ -108,70 +120,6 @@ const activityItems = [
   { title: "Risk regime updated", meta: "Signal engine · 14 min ago", tone: "amber" },
   { title: "n8n production webhook verified", meta: "Lead automation workflow · 21 min ago", tone: "emerald" },
   { title: "Agent status changed", meta: "Registry monitor · 33 min ago", tone: "rose" },
-];
-
-const commandStats = [
-  { label: "Live agents", value: "12" },
-  { label: "Runs today", value: "284" },
-  { label: "Open decisions", value: "9" },
-];
-
-const roadmapTracks = [
-  {
-    title: "Content Engine",
-    status: "In production",
-    priority: "P1",
-    blockers: ["Approval queue capacity"],
-    dependencies: ["Publishing calendar", "Asset library", "Research agent prompts"],
-    revenueCheckpoints: ["Newsletter CTA conversion", "Content-to-call attribution"],
-    milestones: ["Daily signal brief", "Short-form post pipeline", "Campaign performance review"],
-  },
-  {
-    title: "Lead Engine",
-    status: "Pilot",
-    priority: "P1",
-    blockers: ["CRM field mapping", "Sales handoff SLA"],
-    dependencies: ["Waitlist API", "Resend alerts", "Supabase leads table"],
-    revenueCheckpoints: ["Qualified lead rate", "Booked consults from automation"],
-    milestones: ["Lead capture alerts", "Follow-up scripts", "Pipeline scoring"],
-  },
-  {
-    title: "Automation",
-    status: "Buildout",
-    priority: "P2",
-    blockers: ["Workflow QA coverage"],
-    dependencies: ["n8n templates", "Credential vault", "Runbook ownership"],
-    revenueCheckpoints: ["Hours saved per client", "Automation package renewal intent"],
-    milestones: ["Backup workflows", "SLA monitoring", "Recovery playbooks"],
-  },
-  {
-    title: "AI Operations",
-    status: "Active",
-    priority: "P0",
-    blockers: ["Escalation policy finalization"],
-    dependencies: ["Agent registry", "Prompt library", "Activity telemetry"],
-    revenueCheckpoints: ["Operator adoption", "Client-facing ops report demand"],
-    milestones: ["Agent health dashboard", "Ops audit cadence", "Incident triage loop"],
-  },
-  {
-    title: "Drone Operations",
-    status: "Scoping",
-    priority: "P0",
-    blockers: ["Mapbox/Supabase production keys", "Flight telemetry schema approval", "FAA/compliance review for pilot workflows"],
-    dependencies: ["SkyTrace drone dashboard", "Realtime telemetry ingestion", "Incident log storage", "Alert routing", "Mapping provider"],
-    revenueCheckpoints: ["Validate paid inspection use case", "Confirm pilot customers for monitoring subscriptions", "Price incident-report exports"],
-    milestones: [
-      "Drone MVP Definition",
-      "Dashboard Modules",
-      "Signal Intelligence",
-      "AI Incident Logging",
-      "Telemetry/Data Layer",
-      "Future Mapping System",
-      "Alerting Infrastructure",
-      "Monetization Milestones",
-      "Deployment Milestones",
-    ],
-  },
 ];
 
 export default function SystemCapitalDashboard() {
@@ -573,138 +521,6 @@ export default function SystemCapitalDashboard() {
           font-weight: 800;
         }
 
-
-        .scd-roadmap {
-          padding: 28px;
-        }
-
-        .scd-roadmap-header {
-          display: flex;
-          align-items: start;
-          justify-content: space-between;
-          gap: 18px;
-          margin-bottom: 22px;
-        }
-
-        .scd-roadmap-header h2 {
-          max-width: 780px;
-          margin: 10px 0 0;
-          font-size: clamp(1.8rem, 3vw, 3rem);
-          line-height: 0.98;
-          letter-spacing: -0.055em;
-        }
-
-        .scd-roadmap-header > span,
-        .scd-roadmap-card-header span {
-          border: 1px solid rgba(34, 211, 238, 0.34);
-          border-radius: 999px;
-          background: rgba(34, 211, 238, 0.1);
-          color: #bae6fd;
-          padding: 7px 11px;
-          font-size: 0.72rem;
-          font-weight: 800;
-          letter-spacing: 0.12em;
-          text-transform: uppercase;
-          white-space: nowrap;
-        }
-
-        .scd-roadmap-grid {
-          display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 16px;
-        }
-
-        .scd-roadmap-card {
-          border: 1px solid rgba(255, 255, 255, 0.08);
-          border-radius: 24px;
-          background: rgba(2, 6, 23, 0.44);
-          padding: 20px;
-        }
-
-        .scd-roadmap-card:last-child {
-          grid-column: 1 / -1;
-          border-color: rgba(34, 211, 238, 0.32);
-          background:
-            radial-gradient(circle at 85% 15%, rgba(34, 211, 238, 0.16), transparent 28%),
-            rgba(2, 6, 23, 0.56);
-        }
-
-        .scd-roadmap-card-header {
-          display: flex;
-          align-items: start;
-          justify-content: space-between;
-          gap: 12px;
-        }
-
-        .scd-roadmap-card h3 {
-          margin: 0;
-          font-size: 1.35rem;
-          letter-spacing: -0.04em;
-        }
-
-        .scd-roadmap-status {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 12px;
-          margin-top: 16px;
-          border: 1px solid rgba(255, 255, 255, 0.08);
-          border-radius: 16px;
-          background: rgba(15, 23, 42, 0.58);
-          padding: 12px 14px;
-        }
-
-        .scd-roadmap-status span,
-        .scd-roadmap-section p {
-          margin: 0;
-          color: var(--scd-muted);
-          font-size: 0.72rem;
-          font-weight: 800;
-          letter-spacing: 0.14em;
-          text-transform: uppercase;
-        }
-
-        .scd-roadmap-status strong {
-          color: #d9f99d;
-          font-size: 0.9rem;
-        }
-
-        .scd-roadmap-section {
-          margin-top: 16px;
-        }
-
-        .scd-roadmap-tags {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 8px;
-          margin-top: 10px;
-        }
-
-        .scd-roadmap-tags span {
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          border-radius: 999px;
-          background: rgba(15, 23, 42, 0.62);
-          color: #e2e8f0;
-          padding: 6px 10px;
-          font-size: 0.78rem;
-        }
-
-        .scd-roadmap-columns {
-          display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 14px;
-        }
-
-        .scd-roadmap-section ul {
-          display: grid;
-          gap: 7px;
-          margin: 10px 0 0;
-          padding-left: 18px;
-          color: var(--scd-muted);
-          font-size: 0.86rem;
-          line-height: 1.45;
-        }
-
         .scd-activity {
           position: fixed;
           inset: 28px 28px 28px auto;
@@ -794,8 +610,7 @@ export default function SystemCapitalDashboard() {
             margin: 0 28px 28px;
           }
 
-          .scd-module-grid,
-          .scd-roadmap-grid {
+          .scd-module-grid {
             grid-template-columns: repeat(2, minmax(0, 1fr));
           }
         }
@@ -823,22 +638,8 @@ export default function SystemCapitalDashboard() {
             padding: 28px;
           }
 
-          .scd-module-grid,
-          .scd-roadmap-grid,
-          .scd-roadmap-columns {
+          .scd-module-grid {
             grid-template-columns: 1fr;
-          }
-
-          .scd-roadmap {
-            padding: 22px;
-          }
-
-          .scd-roadmap-header {
-            flex-direction: column;
-          }
-
-          .scd-roadmap-card:last-child {
-            grid-column: auto;
           }
 
           .scd-activity {

@@ -4,13 +4,20 @@ import Link from "next/link";
 
 const navItems = [
   { label: "Dashboard", href: "/dashboard" },
-  { label: "Agents", href: "/agents" },
+  { label: "Command Center", href: "/command-center" },
+  { label: "Landing", href: "/landing" },
+  { label: "System Capital OS", href: "/system-capital-os" },
+  { label: "Projects", href: "/projects" },
   { label: "Roadmap", href: "/roadmap" },
   { label: "Mission Control", href: "/mission-control" },
-  { label: "Signals", href: "/signals" },
+  { label: "Operations", href: "/operations" },
+  { label: "Drone Ops", href: "/drone" },
+  { label: "Agents", href: "/agents" },
   { label: "Automations", href: "/automation" },
-  { label: "Deployments", href: "/deployment" },
-  { label: "Prompt Library", href: "/prompts" },
+  { label: "Signals", href: "/signals" },
+  { label: "Activity", href: "/activity" },
+  { label: "Brand Kit", href: "/brand-kit" },
+  { label: "Lead Payments", href: "/lead/next-step" },
   { label: "Settings", href: "/settings" },
 ];
 
@@ -34,6 +41,12 @@ const moduleCards = [
     detail: "n8n and OpenClaw workflows mapped to business outcomes.",
   },
   {
+    title: "Lead Capture Routing",
+    href: "/lead/next-step",
+    metric: "3",
+    detail: "Starter, Pro, and Custom paths route to Stripe or booking next steps.",
+  },
+  {
     title: "Roadmap",
     href: "/roadmap",
     metric: "3",
@@ -52,24 +65,48 @@ const moduleCards = [
     detail: "Macro, risk, liquidity, and operational signals monitored.",
   },
   {
-    title: "Deployment Status",
-    href: "/deployment",
-    metric: "7",
-    detail: "Production surfaces staged for agent-assisted release.",
+    title: "Activity Feed",
+    href: "/activity",
+    metric: "Live",
+    detail: "Unified audit and activity stream for operator handoffs.",
   },
   {
-    title: "Prompt Intelligence",
-    href: "/prompts",
-    metric: "63",
-    detail: "Governed prompt assets with reusable operating context.",
+    title: "Drone Operations",
+    href: "/drone",
+    metric: "P0",
+    detail: "SkyTrace telemetry, incident logging, and monetization milestones.",
+  },
+  {
+    title: "Project Portfolio",
+    href: "/projects",
+    metric: "4",
+    detail: "System Capital routes, launches, and growth projects preserved.",
+  },
+  {
+    title: "System Capital OS",
+    href: "/system-capital-os",
+    metric: "Core",
+    detail: "Primary operating system surface for the System Capital stack.",
+  },
+  {
+    title: "Landing Page",
+    href: "/landing",
+    metric: "Live",
+    detail: "Public entry route for System Capital lead and marketing flows.",
+  },
+  {
+    title: "Brand Kit",
+    href: "/brand-kit",
+    metric: "Ready",
+    detail: "Marketing assets and identity surfaces for launch collateral.",
   },
 ];
 
 const activityItems = [
   { title: "Alora analyzed Fed minutes", meta: "Macro desk · 2 min ago", tone: "cyan" },
-  { title: "Workflow completed", meta: "Lead capture sync · 8 min ago", tone: "violet" },
+  { title: "Lead capture routed to payment", meta: "Tally → n8n → Stripe · 8 min ago", tone: "violet" },
   { title: "Risk regime updated", meta: "Signal engine · 14 min ago", tone: "amber" },
-  { title: "n8n automation executed", meta: "Ops workflow · 21 min ago", tone: "emerald" },
+  { title: "n8n production webhook verified", meta: "Lead automation workflow · 21 min ago", tone: "emerald" },
   { title: "Agent status changed", meta: "Registry monitor · 33 min ago", tone: "rose" },
 ];
 
@@ -160,7 +197,7 @@ export default function SystemCapitalDashboard() {
         <section className="scd-sidebar-card" aria-label="Current operating mode">
           <span>OS Mode</span>
           <strong>Autonomous command layer</strong>
-          <p>Dark glass workspace for agents, signals, workflows, deployments, and prompts.</p>
+          <p>Dark glass workspace for agents, signals, workflows, lead routing, payments, and launch operations.</p>
         </section>
       </aside>
 
@@ -170,7 +207,7 @@ export default function SystemCapitalDashboard() {
             <p className="scd-kicker">System Capital OS · Mission Control</p>
             <h1>Full-stack operating dashboard for intelligent capital.</h1>
             <p>
-              Monitor AI operations, agent status, macro signals, automations, deployments, and prompt intelligence from one glassmorphism command surface.
+              Monitor AI operations, agent status, macro signals, automations, n8n lead capture, payment routing, and launch operations from one glassmorphism command surface.
             </p>
           </div>
           <div className="scd-command-card" aria-label="Command stats">
@@ -318,6 +355,7 @@ export default function SystemCapitalDashboard() {
           display: flex;
           flex-direction: column;
           gap: 26px;
+          overflow-y: auto;
           border-right: 1px solid var(--scd-line);
           background: rgba(2, 6, 23, 0.78);
           padding: 26px;

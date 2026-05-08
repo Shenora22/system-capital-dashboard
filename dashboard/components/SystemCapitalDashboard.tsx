@@ -43,7 +43,7 @@ const moduleCards = [
   {
     title: "Roadmap",
     href: "/roadmap",
-    metric: "3",
+    metric: "5",
     detail: "Now, next, and later execution lanes for the command layer.",
   },
   {
@@ -77,7 +77,7 @@ const moduleCards = [
     detail: "Macro, risk, liquidity, and operational signals monitored by Alora.",
   },
   {
-    title: "Activity Feed",
+    title: "Activity",
     href: "/activity",
     metric: "Live",
     detail: "Unified audit and activity stream for operator handoffs.",
@@ -178,6 +178,68 @@ export default function SystemCapitalDashboard() {
             </Link>
           ))}
         </div>
+
+        <section className="scd-roadmap scd-glass" aria-label="Roadmap and Mission Control">
+          <div className="scd-roadmap-header">
+            <div>
+              <p className="scd-kicker">Roadmap / Mission Control</p>
+              <h2>Operating roadmap across growth, automation, AI ops, and drone operations.</h2>
+            </div>
+            <span>5 active lanes</span>
+          </div>
+
+          <div className="scd-roadmap-grid">
+            {roadmapTracks.map((track) => (
+              <article className="scd-roadmap-card" key={track.title}>
+                <div className="scd-roadmap-card-header">
+                  <h3>{track.title}</h3>
+                  <span>{track.priority}</span>
+                </div>
+                <div className="scd-roadmap-status">
+                  <span>Status</span>
+                  <strong>{track.status}</strong>
+                </div>
+
+                <div className="scd-roadmap-section">
+                  <p>Milestones</p>
+                  <div className="scd-roadmap-tags">
+                    {track.milestones.map((milestone) => (
+                      <span key={milestone}>{milestone}</span>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="scd-roadmap-columns">
+                  <div className="scd-roadmap-section">
+                    <p>Blockers</p>
+                    <ul>
+                      {track.blockers.map((blocker) => (
+                        <li key={blocker}>{blocker}</li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div className="scd-roadmap-section">
+                    <p>Technical dependencies</p>
+                    <ul>
+                      {track.dependencies.map((dependency) => (
+                        <li key={dependency}>{dependency}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+
+                <div className="scd-roadmap-section">
+                  <p>Revenue validation checkpoints</p>
+                  <ul>
+                    {track.revenueCheckpoints.map((checkpoint) => (
+                      <li key={checkpoint}>{checkpoint}</li>
+                    ))}
+                  </ul>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
       </section>
 
       <aside className="scd-activity scd-glass" aria-label="Live activity feed">

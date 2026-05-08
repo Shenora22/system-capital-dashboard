@@ -1,4 +1,3 @@
-
 import ShenoraShell from "@/dashboard/components/ShenoraShell";
 import { agentRoster, networkActivityFeed, workflowStatuses } from "@/memory/data/shenora";
 
@@ -62,10 +61,4 @@ export default function CommandCenterPage() {
       </section>
     </ShenoraShell>
   );
-
-import SystemCapitalDashboard from "@/dashboard/components/SystemCapitalDashboard";
-
-export default function CommandCenterPage() {
-  return <SystemCapitalDashboard />;
-
 }

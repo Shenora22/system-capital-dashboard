@@ -1,9 +1,3 @@
-<<<<<<< HEAD
-import MissionControlRoadmap from "@/components/MissionControlRoadmap";
-
-export default function OperationsPage() {
-  return <MissionControlRoadmap />;
-=======
 import Link from "next/link";
 import ShenoraShell from "@/dashboard/components/ShenoraShell";
 import { agentRoster, workflowStatuses, signalFeed } from "@/memory/data/shenora";
@@ -77,5 +71,4 @@ export default function OperationsPage() {
       </section>
     </ShenoraShell>
   );
->>>>>>> origin/main
 }

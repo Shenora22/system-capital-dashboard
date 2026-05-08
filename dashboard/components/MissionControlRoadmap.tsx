@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { missionControlRoadmap, type RoadmapChecklistItem } from "@/Data/mission-control-roadmap";
+import { missionControlRoadmap, type RoadmapChecklistItem } from "@/memory/data/mission-control-roadmap";
 
 const STORAGE_KEY = "system-capital:mission-control-checklist";
 

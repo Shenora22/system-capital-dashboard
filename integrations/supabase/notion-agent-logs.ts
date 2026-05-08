@@ -143,7 +143,8 @@ export async function fetchRecentAgentLogs(limit = 10): Promise<AgentLogEntry[]>
   const notionToken = process.env.NOTION_TOKEN;
 
   if (!notionToken) {
-    throw new Error("NOTION_TOKEN is not configured on the server.");
+    // Notion is not configured — return empty log list gracefully
+    return [];
   }
 
   const dataSourceId = process.env.NOTION_DATA_SOURCE_ID || AGENT_LOGS_DATA_SOURCE_ID;

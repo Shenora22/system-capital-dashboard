@@ -12,6 +12,64 @@ import {
 } from "@/logging/lib/agent-logs";
 import { agentRoster, signalFeed, workflowStatuses } from "@/memory/data/shenora";
 
+type RoadmapTrack = {
+  title: string;
+  priority: string;
+  status: string;
+  milestones: string[];
+  blockers: string[];
+  dependencies: string[];
+  revenueCheckpoints: string[];
+};
+
+const roadmapTracks: RoadmapTrack[] = [
+  {
+    title: "Growth & Revenue",
+    priority: "Critical",
+    status: "In Progress",
+    milestones: ["Close 3 beta design partners", "Launch AI automation audit offer", "Reactivate 12 warm leads"],
+    blockers: ["Demo script not finalized", "Pricing page pending"],
+    dependencies: ["CRM integration", "Lead capture pipeline"],
+    revenueCheckpoints: ["$25k committed pilots", "3 packaged audit offers sold"],
+  },
+  {
+    title: "AI Automation Ops",
+    priority: "Critical",
+    status: "In Progress",
+    milestones: ["Harden top 3 n8n workflows", "Agent Logs connected in production", "Command Center as daily cockpit"],
+    blockers: ["NOTION_TOKEN not in Vercel env", "n8n webhook env vars pending"],
+    dependencies: ["Notion integration", "n8n local runtime"],
+    revenueCheckpoints: ["Automation audit deliverable ready", "Agent uptime >95%"],
+  },
+  {
+    title: "Dashboard & Command",
+    priority: "High",
+    status: "In Progress",
+    milestones: ["All module routes live", "Agent Logs feed active", "Roadmap groomed weekly"],
+    blockers: ["Agent log owner assignment pending"],
+    dependencies: ["Notion API", "Supabase optional"],
+    revenueCheckpoints: ["Demo-ready dashboard for partner calls"],
+  },
+  {
+    title: "Content & Social",
+    priority: "Medium",
+    status: "Queued",
+    milestones: ["Newsletter pipeline live", "Social posting automation", "Content calendar system"],
+    blockers: ["X API OAuth pending", "Brand voice pack in review"],
+    dependencies: ["Beehiiv", "n8n social adapter"],
+    revenueCheckpoints: ["500 newsletter subscribers", "Consistent inbound from content"],
+  },
+  {
+    title: "Drone Operations",
+    priority: "Low",
+    status: "Queued",
+    milestones: ["Map intelligence demo narrative", "Telemetry data contract defined", "Pilot use case packaged"],
+    blockers: ["Core dashboard must stabilize first"],
+    dependencies: ["Telemetry ingest source", "Drone data contract"],
+    revenueCheckpoints: ["First drone pilot engagement signed"],
+  },
+];
+
 const navItems = [
   { label: "Dashboard", href: "/dashboard" },
   { label: "Command Center", href: "/command-center" },

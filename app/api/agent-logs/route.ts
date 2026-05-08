@@ -1,25 +1,14 @@
 import { NextResponse } from "next/server";
-import { fetchRecentAgentLogs } from "@/lib/notion-agent-logs";
+import { fetchRecentAgentLogs } from "@/integrations/supabase/notion-agent-logs";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const limit = Number(searchParams.get("limit") ?? 10);
-
+export async function GET() {
   try {
-    const logs = await fetchRecentAgentLogs(Number.isFinite(limit) ? limit : 10);
-
+    const logs = await fetchRecentAgentLogs();
     return NextResponse.json({ logs });
   } catch (error) {
-    console.error("[agent-logs] Failed to fetch Notion Agent Logs", error);
-
-    return NextResponse.json(
-      {
-        logs: [],
-        error: "Unable to load Agent Logs from Notion.",
-      },
-      { status: 500 },
-    );
+    console.error("[agent-logs] Failed to fetch logs:", error);
+    return NextResponse.json({ logs: [], error: "Agent logs unavailable" }, { status: 200 });
   }
 }

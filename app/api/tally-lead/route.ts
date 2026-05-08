@@ -1,3 +1,8 @@
+import { logAgentEvent } from "@/logging/agentLogs";
+
+export const runtime = "nodejs";
+
+
 type TallyField = {
   key?: string;
   label?: string;
@@ -5,6 +10,27 @@ type TallyField = {
   name?: string;
   value?: unknown;
   answer?: unknown;
+
+};
+
+type TallyPayload = {
+  name?: unknown;
+  email?: unknown;
+  business?: unknown;
+  package?: unknown;
+  source?: unknown;
+  data?: {
+    fields?: TallyField[];
+  };
+  fields?: TallyField[];
+  response?: {
+    answers?: TallyField[];
+  };
+  [key: string]: unknown;
+};
+
+type Lead = {
+
   options?: Array<{ id?: string; text?: string; label?: string; value?: string }>;
 };
 
@@ -16,6 +42,7 @@ type PaymentNextStep = {
 };
 
 type NormalizedLead = {
+
   name: string;
   email: string;
   business: string;
@@ -242,6 +269,13 @@ export async function POST(request: Request) {
     }
 
     console.log("[TALLY_LEAD_RECEIVED]", lead);
+    logAgentEvent({
+  agent: "Growth Agent",
+  action: "Tally lead received",
+  result: `${lead.name} (${lead.email || "no email"}) from ${lead.business}`,
+  status: "info",
+  metadata: { lead },
+});
 
     if (dryRun) {
       return Response.json({ success: true, message: "Lead captured successfully", dryRun: true, lead });

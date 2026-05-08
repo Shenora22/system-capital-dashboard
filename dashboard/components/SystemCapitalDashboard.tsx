@@ -1,6 +1,5 @@
-"use client";
-
 import Link from "next/link";
+import ShenoraShell from "./ShenoraShell";
 
 const navItems = [
   { label: "Dashboard", href: "/dashboard" },
@@ -19,26 +18,18 @@ const navItems = [
   { label: "Brand Kit", href: "/brand-kit" },
   { label: "Lead Payments", href: "/lead/next-step" },
   { label: "Settings", href: "/settings" },
+const commandStats = [
+  { label: "Live agents", value: "12", detail: "Role-owned operators across capital, content, and workflow lanes." },
+  { label: "Runs today", value: "284", detail: "Automation and analysis events routed through the operating layer." },
+  { label: "Open decisions", value: "9", detail: "Items awaiting owner review before customer-facing release." },
 ];
 
 const moduleCards = [
   {
-    title: "AI Operations Center",
-    href: "/operations",
-    metric: "98.4%",
-    detail: "Automation uptime across live orchestration lanes.",
-  },
-  {
-    title: "Agent Registry",
-    href: "/agents",
-    metric: "12",
-    detail: "Active agents with role ownership and health telemetry.",
-  },
-  {
-    title: "Workflow Architecture",
-    href: "/automation",
-    metric: "42",
-    detail: "n8n and OpenClaw workflows mapped to business outcomes.",
+    title: "Projects",
+    href: "/projects",
+    metric: "6",
+    detail: "Current delivery surfaces and client-facing build priorities.",
   },
   {
     title: "Lead Capture Routing",
@@ -50,19 +41,31 @@ const moduleCards = [
     title: "Roadmap",
     href: "/roadmap",
     metric: "3",
-    detail: "Now, next, and later delivery lanes for the command layer.",
+    detail: "Now, next, and later execution lanes for the command layer.",
   },
   {
     title: "Mission Control",
     href: "/mission-control",
     metric: "Green",
-    detail: "Operator cockpit for launch readiness and route health.",
+    detail: "Route health, launch readiness, and operator escalation links.",
   },
   {
-    title: "Signal Engine",
+    title: "Agents",
+    href: "/agents",
+    metric: "12",
+    detail: "Agent registry with ownership, posture, and workflow context.",
+  },
+  {
+    title: "Automation",
+    href: "/automation",
+    metric: "42",
+    detail: "n8n and workflow architecture mapped to operating outcomes.",
+  },
+  {
+    title: "Signals",
     href: "/signals",
     metric: "187",
-    detail: "Macro, risk, liquidity, and operational signals monitored.",
+    detail: "Macro, risk, liquidity, and operational signals monitored by Alora.",
   },
   {
     title: "Activity Feed",
@@ -99,6 +102,16 @@ const moduleCards = [
     href: "/brand-kit",
     metric: "Ready",
     detail: "Marketing assets and identity surfaces for launch collateral.",
+    title: "Activity",
+    href: "/activity",
+    metric: "Live",
+    detail: "Recent system events across agents, leads, signals, and automations.",
+  },
+  {
+    title: "Settings",
+    href: "/settings",
+    metric: "Ops",
+    detail: "Workspace configuration, operating preferences, and governance controls.",
   },
 ];
 
@@ -231,67 +244,55 @@ export default function SystemCapitalDashboard() {
           ))}
         </div>
 
-        <section className="scd-roadmap scd-glass" aria-label="Roadmap and Mission Control">
-          <div className="scd-roadmap-header">
+      <section className="grid gap-4 lg:grid-cols-[1.35fr_0.65fr]">
+        <div className="rounded-3xl border border-white/5 bg-slate-900/70 p-6">
+          <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
-              <p className="scd-kicker">Roadmap / Mission Control</p>
-              <h2>Operating roadmap across growth, automation, AI ops, and drone operations.</h2>
+              <p className="text-sm uppercase tracking-[0.3em] text-slate-500">Command modules</p>
+              <h2 className="mt-1 text-2xl font-semibold text-white">Working dashboard routes</h2>
             </div>
-            <span>5 active lanes</span>
+            <Link
+              href="/mission-control"
+              className="rounded-full border border-emerald-400/40 px-4 py-2 text-sm font-medium text-emerald-200 transition hover:bg-emerald-500/10"
+            >
+              Open Mission Control
+            </Link>
           </div>
 
-          <div className="scd-roadmap-grid">
-            {roadmapTracks.map((track) => (
-              <article className="scd-roadmap-card" key={track.title}>
-                <div className="scd-roadmap-card-header">
-                  <h3>{track.title}</h3>
-                  <span>{track.priority}</span>
-                </div>
-                <div className="scd-roadmap-status">
-                  <span>Status</span>
-                  <strong>{track.status}</strong>
-                </div>
-
-                <div className="scd-roadmap-section">
-                  <p>Milestones</p>
-                  <div className="scd-roadmap-tags">
-                    {track.milestones.map((milestone) => (
-                      <span key={milestone}>{milestone}</span>
-                    ))}
+          <div className="mt-6 grid gap-4 md:grid-cols-2">
+            {moduleCards.map((module) => (
+              <Link
+                key={module.href}
+                href={module.href}
+                className="rounded-2xl border border-white/5 bg-slate-950/40 p-5 transition hover:border-emerald-400/30 hover:bg-emerald-500/10"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.3em] text-slate-500">{module.title}</p>
+                    <p className="mt-3 text-sm text-slate-300">{module.detail}</p>
                   </div>
+                  <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-emerald-200">
+                    {module.metric}
+                  </span>
                 </div>
+                <span className="mt-4 inline-block text-xs font-medium text-emerald-200">Open route →</span>
+              </Link>
+            ))}
+          </div>
+        </div>
 
-                <div className="scd-roadmap-columns">
-                  <div className="scd-roadmap-section">
-                    <p>Blockers</p>
-                    <ul>
-                      {track.blockers.map((blocker) => (
-                        <li key={blocker}>{blocker}</li>
-                      ))}
-                    </ul>
-                  </div>
-                  <div className="scd-roadmap-section">
-                    <p>Technical dependencies</p>
-                    <ul>
-                      {track.dependencies.map((dependency) => (
-                        <li key={dependency}>{dependency}</li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-
-                <div className="scd-roadmap-section">
-                  <p>Revenue validation checkpoints</p>
-                  <ul>
-                    {track.revenueCheckpoints.map((checkpoint) => (
-                      <li key={checkpoint}>{checkpoint}</li>
-                    ))}
-                  </ul>
-                </div>
+        <aside className="rounded-3xl border border-white/5 bg-slate-900/70 p-6">
+          <p className="text-sm uppercase tracking-[0.3em] text-slate-500">Live feed</p>
+          <h2 className="mt-1 text-2xl font-semibold text-white">Operator activity</h2>
+          <div className="mt-6 space-y-3">
+            {activityItems.map((item) => (
+              <article key={item.title} className="rounded-2xl border border-white/5 bg-slate-950/40 p-4">
+                <p className="font-semibold text-white">{item.title}</p>
+                <p className="mt-1 text-sm text-slate-300">{item.meta}</p>
               </article>
             ))}
           </div>
-        </section>
+        </aside>
       </section>
 
       <aside className="scd-activity scd-glass" aria-label="Live activity feed">

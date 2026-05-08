@@ -44,7 +44,17 @@ Open <http://localhost:3000>.
 npm run build
 ```
 
-## n8n Lead Capture Workflow Import
+## Tally Lead Capture, Payment Routing, and n8n Workflow
+
+Tally posts production form submissions to the Next.js API route at `app/api/tally-lead/route.ts`. That route normalizes Tally fields, preserves package selection, assigns the correct payment next step, and forwards accepted `FORM_RESPONSE` leads to the n8n production webhook. Starter and Pro packages route to Stripe payment links, while Custom Build routes to a booking link.
+
+The validated n8n webhook path is:
+
+```text
+system-capital-lead
+```
+
+Do not replace this with a `/webhook-test/` URL in production. The app composes the production path as `/webhook/system-capital-lead` when `N8N_BASE_URL` is provided, or validates `N8N_LEAD_WEBHOOK_URL` if an explicit webhook URL is configured.
 
 The corrected lead-capture n8n workflow lives at:
 
@@ -86,6 +96,8 @@ Validate the checked-in n8n workflow JSON files with:
 ```bash
 npm run validate:n8n-workflows
 ```
+
+The export and validation scripts are intentionally kept in `package.json` so operators can refresh the importable workflow copy and verify the checked-in JSON before publishing changes.
 
 ## n8n Workflow Backups
 

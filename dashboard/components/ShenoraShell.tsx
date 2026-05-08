@@ -2,7 +2,7 @@ import Link from "next/link";
 import AskAloraWidget from "./AskAloraWidget";
 
 const navItems = [
-  { label: "Overview", href: "/overview", key: "overview" },
+  { label: "Dashboard", href: "/dashboard", key: "dashboard" },
   { label: "Projects", href: "/projects", key: "projects" },
   { label: "Roadmap", href: "/roadmap", key: "roadmap" },
   { label: "Mission Control", href: "/mission-control", key: "mission-control" },

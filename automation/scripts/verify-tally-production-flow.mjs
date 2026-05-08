@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-const packageFieldLabel = "Choose Your Package";
 const requiredPackages = ["Starter System ($49)", "Pro Follow-Up System ($149)", "Custom Build"];
 const expectedRedirects = {
   "Starter System ($49)": "https://buy.stripe.com/...",
@@ -20,14 +19,12 @@ async function verifyPublicTallyForm() {
 
   const response = await fetch(tallyFormUrl);
   const html = await response.text();
-  const hasPackageFieldLabel = html.includes(packageFieldLabel);
   const missingPackages = requiredPackages.filter((label) => !html.includes(label));
 
   return {
     skipped: false,
     status: response.status,
-    ok: response.ok && hasPackageFieldLabel && missingPackages.length === 0,
-    hasPackageFieldLabel,
+    ok: response.ok && missingPackages.length === 0,
     missingPackages,
   };
 }

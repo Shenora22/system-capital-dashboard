@@ -75,7 +75,7 @@ function isConfiguredExternalUrl(value: string): boolean {
 
 export default async function LeadNextStepPage({ searchParams }: NextStepPageProps) {
   const params = (await searchParams) ?? {};
-  const selectedPackageKey = packageKey(firstParam(params.package ?? params.chooseYourPackage ?? params.choose_your_package ?? params.plan ?? params.offer));
+  const selectedPackageKey = packageKey(firstParam(params.package ?? params.plan ?? params.offer));
   const selectedPackage = packages[selectedPackageKey];
   const selectedUrl = nextStepUrl(selectedPackageKey);
 

@@ -37,11 +37,11 @@ This repository is organized around system responsibilities while preserving the
 | `app/` | Stable route/API boundary. Route paths remain unchanged. | `app/**/page.tsx`, `app/api/**/route.ts` |
 | `dashboard/` | Command workspace shell, dashboard landing, and Alora widget UI. | `dashboard/components/*.tsx` |
 | `agents/` | Agent roster, action controls, and agent-specific interactive UI. | `agents/components/AgentsInteractive.tsx` |
-| `automation/` | n8n exports, operational automation scripts, and backup runbooks. | `automation/n8n/workflows/*.json`, `automation/scripts/*.sh` |
+| `automation/` | n8n exports, lead-capture workflow tooling, operational automation scripts, and backup runbooks. | `automation/n8n/workflows/*.json`, `automation/scripts/*` |
 | `prompts/` | Future prompt packs, evaluation prompts, and agent prompt governance. | `prompts/README.md` |
 | `memory/` | Local fixture memory until persistent memory/event stores are connected. | `memory/data/shenora.ts`, `memory/data/signals.json` |
 | `marketing/` | Brand/content/campaign materials and lead-capture UI. | `marketing/components/EmailSignup.tsx`, `marketing/content/*.md` |
-| `integrations/` | External-service adapters and TODOs for production connectivity. | `integrations/supabase/client.ts`, `integrations/*/README.md` |
+| `integrations/` | External-service adapters, n8n/Tally setup docs, payment-routing notes, and TODOs for production connectivity. | `integrations/supabase/client.ts`, `integrations/*/README.md` |
 | `logging/` | Log display UI and future schema/diagnostics utilities. | `logging/components/AgentLogViewer.tsx` |
 | `workflows/` | Human-readable workflow definitions separate from executable n8n JSON. | `workflows/README.md` |
 
@@ -75,9 +75,17 @@ Static marketing assets were moved to `public/marketing/**`. Legacy asset URLs a
 | `public/brand-kit/assets/*.svg` | `public/marketing/assets/brand-kit/*.svg` |
 | `public/carousels/system-capital/*.svg` | `public/marketing/carousels/system-capital/*.svg` |
 
+## Lead Capture Workflow Guarantees
+
+- Canonical workflow JSON stays at `automation/n8n/workflows/lead-capture-alert-template-v2.json`.
+- Validated production webhook path stays `system-capital-lead`.
+- Export tooling stays available through `npm run export:n8n-lead-workflow`.
+- Validation tooling stays available through `npm run validate:n8n-workflows`.
+- Tally package selections continue to route Starter and Pro packages to Stripe payment links and Custom Build leads to the booking flow.
+
 ## Unresolved Issues
 
-- n8n webhook calls still point to localhost and need environment-specific configuration.
+- n8n webhook calls still need a typed adapter boundary around the production `/webhook/system-capital-lead` endpoint.
 - Social posting uses a bearer token path only; production OAuth and token refresh are still unfinished.
 - Drone telemetry still creates a Supabase client directly in the page while schema and repository boundaries are finalized.
 - Prompt packs are not yet extracted from inline UI/copy into versioned prompt files.

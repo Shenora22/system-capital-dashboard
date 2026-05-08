@@ -242,3 +242,4 @@ npm run test:tally-production-flow
 ```
 
 The verification script checks that the live public Tally form HTML contains the `Choose Your Package` label and all three package choices (`Starter System ($49)`, `Pro Follow-Up System ($149)`, and `Custom Build`) and that `/lead/next-step` redirects each package to the expected production Stripe or booking URL. If `TALLY_PUBLIC_FORM_URL` is omitted, the script still verifies dashboard payment routing but reports the live Tally form check as skipped.
+The verification script checks that the live public Tally form HTML contains all three package choices (`Starter System ($49)`, `Pro Follow-Up System ($149)`, and `Custom Build`) and that `/lead/next-step` redirects each package to the expected production Stripe or booking URL. If `TALLY_PUBLIC_FORM_URL` is omitted, the script still verifies dashboard payment routing but reports the live Tally form check as skipped.

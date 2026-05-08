@@ -1,11 +1,5 @@
-import ShenoraShell from "@/dashboard/components/ShenoraShell";
 
-const missions = [
-  { name: "Tally → Payment Flow", owner: "Ops", status: "Live", next: "Verify production package selector" },
-  { name: "Notion Agent Logs", owner: "Agents", status: "Live", next: "Monitor /api/logs health" },
-  { name: "Macro Signal Watch", owner: "Research", status: "Running", next: "Refresh regime note" },
-  { name: "Automation Backup", owner: "n8n", status: "Scheduled", next: "Nightly workflow export" },
-];
+
 
 export default function MissionControlPage() {
   return (
@@ -28,4 +22,10 @@ export default function MissionControlPage() {
       </section>
     </ShenoraShell>
   );
+
+import RoadmapMissionControl from "@/dashboard/components/RoadmapMissionControl";
+
+export default function MissionControlPage() {
+  return <RoadmapMissionControl view="mission-control" />;
+
 }

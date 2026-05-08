@@ -10,7 +10,9 @@
     "seed:skytrace": "node automation/scripts/seed-skytrace.mjs",
     "backup:n8n": "bash automation/scripts/backup-n8n-workflows.sh",
     "test:tally-lead": "node automation/scripts/test-tally-lead.mjs",
-    "test:tally-production-flow": "node automation/scripts/verify-tally-production-flow.mjs"
+    "test:tally-production-flow": "node automation/scripts/verify-tally-production-flow.mjs",
+    "export:n8n-lead-workflow": "node automation/scripts/export-n8n-lead-workflow.mjs",
+    "validate:n8n-workflows": "python3 automation/scripts/validate-n8n-workflows.py"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.99.2",

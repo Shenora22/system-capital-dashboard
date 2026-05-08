@@ -44,6 +44,49 @@ Open <http://localhost:3000>.
 npm run build
 ```
 
+## n8n Lead Capture Workflow Import
+
+The corrected lead-capture n8n workflow lives at:
+
+```text
+automation/n8n/workflows/lead-capture-alert-template-v2.json
+```
+
+A convenience copy for manual import is exported to:
+
+```text
+exports/lead-capture-alert-template-v2.json
+```
+
+To refresh the import copy from the source workflow, run:
+
+```bash
+npm run export:n8n-lead-workflow
+```
+
+To find the workflow in VS Code when the Explorer is focused on `app/automation/page.tsx`:
+
+1. Open the repo root folder, not only the `app/` folder: `/workspace/system-capital-dashboard`.
+2. In Explorer, expand `automation` → `n8n` → `workflows`.
+3. Select `lead-capture-alert-template-v2.json`.
+4. If Explorer is hard to navigate, press `Cmd+P` / `Ctrl+P`, paste `automation/n8n/workflows/lead-capture-alert-template-v2.json`, and press Enter.
+
+To import into n8n:
+
+1. Open n8n.
+2. Create a new workflow or open the workflow import menu.
+3. Choose import from file.
+4. Select `exports/lead-capture-alert-template-v2.json` if you already ran the export command, or select the source file at `automation/n8n/workflows/lead-capture-alert-template-v2.json`.
+5. After import, configure the placeholder Notion and Telegram credentials, confirm the webhook path is `system-capital-lead`, then activate/publish the workflow.
+
+When manually importing, choose this exact file: `exports/lead-capture-alert-template-v2.json`.
+
+Validate the checked-in n8n workflow JSON files with:
+
+```bash
+npm run validate:n8n-workflows
+```
+
 ## n8n Workflow Backups
 
 Export workflows into `automation/n8n/workflows/` using stable names such as:

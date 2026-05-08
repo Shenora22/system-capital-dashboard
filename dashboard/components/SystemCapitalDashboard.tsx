@@ -4,68 +4,122 @@ import Link from "next/link";
 
 const navItems = [
   { label: "Dashboard", href: "/dashboard" },
-  { label: "Mission Control", href: "/mission-control" },
-  { label: "Roadmap", href: "/roadmap" },
-  { label: "Operations", href: "/operations" },
+  { label: "Command Center", href: "/command-center" },
+  { label: "Landing", href: "/landing" },
+  { label: "System Capital OS", href: "/system-capital-os" },
   { label: "Projects", href: "/projects" },
+  { label: "Roadmap", href: "/roadmap" },
+  { label: "Mission Control", href: "/mission-control" },
+  { label: "Operations", href: "/operations" },
+  { label: "Drone Ops", href: "/drone" },
   { label: "Agents", href: "/agents" },
   { label: "Automation", href: "/automation" },
   { label: "Signals", href: "/signals" },
   { label: "Activity", href: "/activity" },
+  { label: "Brand Kit", href: "/brand-kit" },
+  { label: "Lead Payments", href: "/lead/next-step" },
   { label: "Settings", href: "/settings" },
-];
-
-const moduleCards = [
-  {
-    title: "Mission Control",
-    href: "/mission-control",
-    metric: "Live",
-    detail: "Unified command queue for agents, signals, automations, and operator decisions.",
-  },
-  {
-    title: "Roadmap",
-    href: "/roadmap",
-    metric: "3",
-    detail: "Current, next, and planned priorities for the System Capital OS release path.",
-  },
-  {
-    title: "AI Operations Center",
-    href: "/operations",
-    metric: "98.4%",
-    detail: "Automation uptime across live orchestration lanes.",
-  },
-  {
-    title: "Agent Registry",
-    href: "/agents",
-    metric: "12",
-    detail: "Active agents with role ownership and health telemetry.",
-  },
-  {
-    title: "Workflow Architecture",
-    href: "/automation",
-    metric: "42",
-    detail: "n8n and OpenClaw workflows mapped to business outcomes.",
-  },
-  {
-    title: "Signal Engine",
-    href: "/signals",
-    metric: "187",
-    detail: "Macro, risk, liquidity, and operational signals monitored.",
-  },
-];
-
-const activityItems = [
-  { title: "Alora analyzed Fed minutes", meta: "Macro desk · 2 min ago", tone: "cyan" },
-  { title: "Workflow completed", meta: "Lead capture sync · 8 min ago", tone: "violet" },
-  { title: "Risk regime updated", meta: "Signal engine · 14 min ago", tone: "amber" },
-  { title: "n8n automation executed", meta: "Ops workflow · 21 min ago", tone: "emerald" },
-  { title: "Agent status changed", meta: "Registry monitor · 33 min ago", tone: "rose" },
 ];
 
 const commandStats = [
   { label: "Live agents", value: "12" },
   { label: "Runs today", value: "284" },
   { label: "Open decisions", value: "9" },
+];
+
+const moduleCards = [
+  {
+    title: "Projects",
+    href: "/projects",
+    metric: "6",
+    detail: "Current delivery surfaces and client-facing build priorities.",
+  },
+  {
+    title: "Lead Capture Routing",
+    href: "/lead/next-step",
+    metric: "3",
+    detail: "Starter, Pro, and Custom paths route to Stripe or booking next steps.",
+  },
+  {
+    title: "Roadmap",
+    href: "/roadmap",
+    metric: "5",
+    detail: "Now, next, and later execution lanes for the command layer.",
+  },
+  {
+    title: "Mission Control",
+    href: "/mission-control",
+    metric: "Green",
+    detail: "Route health, launch readiness, and operator escalation links.",
+  },
+  {
+    title: "Operations",
+    href: "/operations",
+    metric: "Ops",
+    detail: "Operating cadence, governance routines, and execution accountability.",
+  },
+  {
+    title: "Agents",
+    href: "/agents",
+    metric: "12",
+    detail: "Agent registry with ownership, posture, and workflow context.",
+  },
+  {
+    title: "Automation",
+    href: "/automation",
+    metric: "42",
+    detail: "n8n and workflow architecture mapped to operating outcomes.",
+  },
+  {
+    title: "Signals",
+    href: "/signals",
+    metric: "187",
+    detail: "Macro, risk, liquidity, and operational signals monitored by Alora.",
+  },
+  {
+    title: "Activity",
+    href: "/activity",
+    metric: "Live",
+    detail: "Unified audit and activity stream for operator handoffs.",
+  },
+  {
+    title: "Drone Operations",
+    href: "/drone",
+    metric: "P0",
+    detail: "SkyTrace telemetry, incident logging, and monetization milestones.",
+  },
+  {
+    title: "System Capital OS",
+    href: "/system-capital-os",
+    metric: "Core",
+    detail: "Primary operating system surface for the System Capital stack.",
+  },
+  {
+    title: "Landing Page",
+    href: "/landing",
+    metric: "Live",
+    detail: "Public entry route for System Capital lead and marketing flows.",
+  },
+  {
+    title: "Brand Kit",
+    href: "/brand-kit",
+    metric: "Ready",
+    detail: "Marketing assets and identity surfaces for launch collateral.",
+  },
+  {
+    title: "Settings",
+    href: "/settings",
+    metric: "Config",
+    detail: "Workspace configuration, operating preferences, and governance controls.",
+  },
+];
+
+const activityItems = [
+  { title: "Alora analyzed Fed minutes", meta: "Macro desk · 2 min ago", tone: "cyan" },
+  { title: "Lead capture routed to payment", meta: "Tally → n8n → Stripe · 8 min ago", tone: "violet" },
+  { title: "Risk regime updated", meta: "Signal engine · 14 min ago", tone: "amber" },
+  { title: "n8n production webhook verified", meta: "Lead automation workflow · 21 min ago", tone: "emerald" },
+  { title: "Agent status changed", meta: "Registry monitor · 33 min ago", tone: "rose" },
 ];
 
 export default function SystemCapitalDashboard() {
@@ -91,7 +145,7 @@ export default function SystemCapitalDashboard() {
         <section className="scd-sidebar-card" aria-label="Current operating mode">
           <span>OS Mode</span>
           <strong>Autonomous command layer</strong>
-          <p>Dark glass workspace for agents, signals, workflows, deployments, and prompts.</p>
+          <p>Dark glass workspace for agents, signals, workflows, lead routing, payments, and launch operations.</p>
         </section>
       </aside>
 
@@ -101,7 +155,7 @@ export default function SystemCapitalDashboard() {
             <p className="scd-kicker">System Capital OS · Mission Control</p>
             <h1>Full-stack operating dashboard for intelligent capital.</h1>
             <p>
-              Monitor AI operations, agent status, macro signals, automations, deployments, and prompt intelligence from one glassmorphism command surface.
+              Monitor AI operations, agent status, macro signals, automations, n8n lead capture, payment routing, and launch operations from one glassmorphism command surface.
             </p>
           </div>
           <div className="scd-command-card" aria-label="Command stats">
@@ -124,6 +178,68 @@ export default function SystemCapitalDashboard() {
             </Link>
           ))}
         </div>
+
+        <section className="scd-roadmap scd-glass" aria-label="Roadmap and Mission Control">
+          <div className="scd-roadmap-header">
+            <div>
+              <p className="scd-kicker">Roadmap / Mission Control</p>
+              <h2>Operating roadmap across growth, automation, AI ops, and drone operations.</h2>
+            </div>
+            <span>5 active lanes</span>
+          </div>
+
+          <div className="scd-roadmap-grid">
+            {roadmapTracks.map((track) => (
+              <article className="scd-roadmap-card" key={track.title}>
+                <div className="scd-roadmap-card-header">
+                  <h3>{track.title}</h3>
+                  <span>{track.priority}</span>
+                </div>
+                <div className="scd-roadmap-status">
+                  <span>Status</span>
+                  <strong>{track.status}</strong>
+                </div>
+
+                <div className="scd-roadmap-section">
+                  <p>Milestones</p>
+                  <div className="scd-roadmap-tags">
+                    {track.milestones.map((milestone) => (
+                      <span key={milestone}>{milestone}</span>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="scd-roadmap-columns">
+                  <div className="scd-roadmap-section">
+                    <p>Blockers</p>
+                    <ul>
+                      {track.blockers.map((blocker) => (
+                        <li key={blocker}>{blocker}</li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div className="scd-roadmap-section">
+                    <p>Technical dependencies</p>
+                    <ul>
+                      {track.dependencies.map((dependency) => (
+                        <li key={dependency}>{dependency}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+
+                <div className="scd-roadmap-section">
+                  <p>Revenue validation checkpoints</p>
+                  <ul>
+                    {track.revenueCheckpoints.map((checkpoint) => (
+                      <li key={checkpoint}>{checkpoint}</li>
+                    ))}
+                  </ul>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
       </section>
 
       <aside className="scd-activity scd-glass" aria-label="Live activity feed">
@@ -187,6 +303,7 @@ export default function SystemCapitalDashboard() {
           display: flex;
           flex-direction: column;
           gap: 26px;
+          overflow-y: auto;
           border-right: 1px solid var(--scd-line);
           background: rgba(2, 6, 23, 0.78);
           padding: 26px;

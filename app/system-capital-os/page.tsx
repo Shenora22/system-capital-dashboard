@@ -47,7 +47,7 @@ export default function SystemCapitalOSPage() {
     <main className="system-os-shell">
       <aside className="os-sidebar" aria-label="System Capital OS navigation">
         <a className="os-brand" href="#top">
-          <Image src="/brand-kit/assets/system-capital-mark.svg" alt="System Capital mark" width={46} height={46} priority />
+          <Image src="/marketing/assets/brand-kit/system-capital-mark.svg" alt="System Capital mark" width={46} height={46} priority />
           <span>System Capital <b>OS</b></span>
         </a>
         <nav>
@@ -75,7 +75,7 @@ export default function SystemCapitalOSPage() {
             </div>
           </div>
           <div className="os-orbit-card" aria-label="AI workforce overview visualization">
-            <Image src="/brand-kit/assets/alora-orb.svg" alt="Alora AI assistant orb" width={260} height={260} />
+            <Image src="/marketing/assets/brand-kit/alora-orb.svg" alt="Alora AI assistant orb" width={260} height={260} />
             <div className="os-orbit-ring ring-one" />
             <div className="os-orbit-ring ring-two" />
             <span>42 live automations</span>

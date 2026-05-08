@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+// TODO(integrations): Add OAuth/token refresh support before enabling production posting.
 const X_API_URL = process.env.X_API_URL || "https://api.twitter.com/2/tweets";
 const X_BEARER_TOKEN = process.env.X_API_BEARER_TOKEN;
 

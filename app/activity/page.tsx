@@ -1,4 +1,4 @@
-import ShenoraShell from "@/components/ShenoraShell";
+import ShenoraShell from "@/dashboard/components/ShenoraShell";
 
 const timeline = [
   { time: "14:52", title: "Growth Agent synced venture leads", scope: "System Capital", type: "agent" },

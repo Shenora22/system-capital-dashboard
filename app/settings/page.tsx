@@ -1,4 +1,4 @@
-import ShenoraShell from "@/components/ShenoraShell";
+import ShenoraShell from "@/dashboard/components/ShenoraShell";
 
 const toggles = [
   { label: "Night mode", description: "Lock Shenora Network to dark theme", enabled: true },

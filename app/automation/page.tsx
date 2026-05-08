@@ -1,5 +1,5 @@
-import ShenoraShell from "@/components/ShenoraShell";
-import { workflowStatuses } from "@/Data/shenora";
+import ShenoraShell from "@/dashboard/components/ShenoraShell";
+import { workflowStatuses } from "@/memory/data/shenora";
 
 const runbooks = [
   { name: "Asia open pre-brief", eta: "00:18", owner: "Clara", stage: "assembling" },

@@ -22,7 +22,7 @@ export async function POST(request: Request) {
 
     console.log("[WAITLIST CLEAN DATA]:", cleanData);
 
-    // 🔥 send to n8n
+    // TODO(integrations): Replace the localhost n8n webhook with environment-specific routing and retry logging.
     await fetch("http://localhost:5678/webhook/waitlist", {
       method: "POST",
       headers: {

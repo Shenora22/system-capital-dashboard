@@ -4,6 +4,13 @@ import AskAloraWidget from "./AskAloraWidget";
 const navItems = [
   { label: "Dashboard", href: "/dashboard", key: "dashboard" },
   { label: "Command Center", href: "/command-center", key: "command-center" },
+  { label: "Operations", href: "/operations", key: "operations" },
+  { label: "Agents", href: "/agents", key: "agents" },
+  { label: "Automation", href: "/automation", key: "automation" },
+  { label: "Signals", href: "/signals", key: "signals" },
+  { label: "Deployment", href: "/deployment", key: "deployment" },
+  { label: "Prompts", href: "/prompts", key: "prompts" },
+  { label: "Brand Kit", href: "/brand-kit", key: "brand-kit" },
   { label: "Mission Control", href: "/mission-control", key: "mission-control" },
   { label: "Roadmap", href: "/roadmap", key: "roadmap" },
   { label: "Operations", href: "/operations", key: "operations" },

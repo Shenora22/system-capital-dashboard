@@ -7,7 +7,7 @@ This repository is organized around system responsibilities while preserving the
 ```text
 .
 ├── app/                         # Next.js App Router routes and API endpoints
-│   ├── api/                     # HTTP boundaries for waitlist, signals, and social tests
+│   ├── api/                     # HTTP boundaries for logs, waitlist, signals, and social tests
 │   ├── dashboard/               # Route wrapper for dashboard subsystem
 │   ├── agents/                  # Route wrapper for agents subsystem
 │   ├── automation/              # Route wrapper for automation status UI
@@ -47,7 +47,7 @@ This repository is organized around system responsibilities while preserving the
 
 ## Route Preservation
 
-All current app routes remain in `app/`, including `/dashboard`, `/agents`, `/automation`, `/brand-kit`, `/signals`, `/drone`, and existing API routes. The route files now import implementation components/data from responsibility-based folders.
+All current app routes remain in `app/`, including `/dashboard`, `/operations`, `/agents`, `/automation`, `/signals`, `/deployment`, `/prompts`, `/brand-kit`, `/command-center`, `/drone`, and existing API routes. The route files now import implementation components/data from responsibility-based folders.
 
 Static marketing assets were moved to `public/marketing/**`. Legacy asset URLs are preserved by `next.config.ts` rewrites:
 
@@ -75,6 +75,10 @@ Static marketing assets were moved to `public/marketing/**`. Legacy asset URLs a
 | `public/brand-kit/assets/*.svg` | `public/marketing/assets/brand-kit/*.svg` |
 | `public/carousels/system-capital/*.svg` | `public/marketing/carousels/system-capital/*.svg` |
 
+## Unresolved Issues
+
+- `/api/logs` is wired for Notion, but production requires `NOTION_API_KEY` or `NOTION_TOKEN` in the environment.
+- n8n webhook calls still point to localhost and need environment-specific configuration.
 ## Lead Capture Workflow Guarantees
 
 - Canonical workflow JSON stays at `automation/n8n/workflows/lead-capture-alert-template-v2.json`.

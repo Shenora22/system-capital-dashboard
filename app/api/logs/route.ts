@@ -1,103 +1,196 @@
-import { agentActivityLog } from "@/memory/data/shenora";
+import { NextResponse } from "next/server";
+import { AgentLog, LogsResponse } from "@/logging/lib/agent-logs";
 
-type NotionRichText = Array<{ plain_text?: string }>;
+const NOTION_DATA_SOURCE_ID =
+  process.env.NOTION_DATA_SOURCE_ID || "3584d3a5-eb0f-806d-88b8-000b106afc41";
+const NOTION_TOKEN = process.env.NOTION_API_KEY || process.env.NOTION_TOKEN;
+const NOTION_VERSION = "2022-06-28";
+const NOTION_DATA_SOURCE_VERSION = "2025-09-03";
+
 type NotionProperty = {
-  title?: NotionRichText;
-  rich_text?: NotionRichText;
+  type?: string;
+  title?: { plain_text?: string }[];
+  rich_text?: { plain_text?: string }[];
   select?: { name?: string } | null;
   status?: { name?: string } | null;
-  date?: { start?: string } | null;
+  date?: { start?: string; end?: string } | null;
   created_time?: string;
+  last_edited_time?: string;
+  number?: number;
+  checkbox?: boolean;
+  email?: string;
+  phone_number?: string;
+  url?: string;
+  people?: { name?: string }[];
+  multi_select?: { name?: string }[];
 };
 
 type NotionPage = {
   id: string;
+  url?: string;
   created_time?: string;
+  last_edited_time?: string;
   properties?: Record<string, NotionProperty>;
 };
 
-const NOTION_VERSION = "2022-06-28";
+const getPropertyText = (property?: NotionProperty) => {
+  if (!property) return "";
 
-function textFromProperty(property: NotionProperty | undefined): string {
-  if (!property) {
-    return "";
+  switch (property.type) {
+    case "title":
+      return property.title?.map((item) => item.plain_text).filter(Boolean).join(" ") || "";
+    case "rich_text":
+      return property.rich_text?.map((item) => item.plain_text).filter(Boolean).join(" ") || "";
+    case "select":
+      return property.select?.name || "";
+    case "status":
+      return property.status?.name || "";
+    case "date":
+      return property.date?.start || "";
+    case "created_time":
+      return property.created_time || "";
+    case "last_edited_time":
+      return property.last_edited_time || "";
+    case "number":
+      return typeof property.number === "number" ? String(property.number) : "";
+    case "checkbox":
+      return property.checkbox ? "Yes" : "No";
+    case "email":
+      return property.email || "";
+    case "phone_number":
+      return property.phone_number || "";
+    case "url":
+      return property.url || "";
+    case "people":
+      return property.people?.map((person) => person.name).filter(Boolean).join(", ") || "";
+    case "multi_select":
+      return property.multi_select?.map((item) => item.name).filter(Boolean).join(", ") || "";
+    default:
+      return "";
+  }
+};
+
+const findFirstText = (properties: Record<string, NotionProperty>, keys: string[]) => {
+  const normalized = Object.entries(properties).map(([key, value]) => [key.toLowerCase(), value] as const);
+
+  for (const key of keys) {
+    const exact = properties[key];
+    if (exact) {
+      const value = getPropertyText(exact);
+      if (value) return value;
+    }
+
+    const fuzzy = normalized.find(([propertyKey]) => propertyKey.includes(key.toLowerCase()));
+    if (fuzzy) {
+      const value = getPropertyText(fuzzy[1]);
+      if (value) return value;
+    }
   }
 
-  return (
-    property.title?.map((part) => part.plain_text ?? "").join("") ||
-    property.rich_text?.map((part) => part.plain_text ?? "").join("") ||
-    property.select?.name ||
-    property.status?.name ||
-    property.date?.start ||
-    property.created_time ||
-    ""
-  );
-}
+  return "";
+};
 
-function fallbackLogs(agentFilter: string | null) {
-  return agentActivityLog
-    .filter((entry) => !agentFilter || entry.agent.toLowerCase() === agentFilter.toLowerCase())
-    .slice(0, 50)
-    .map((entry, index) => ({
-      id: `fallback-${index}`,
-      timestamp: entry.time,
-      agent: entry.agent,
-      action: entry.task,
-      result: entry.result,
-      status: "ok",
-      source: "fallback",
-    }));
-}
+const pageTitle = (properties: Record<string, NotionProperty>) => {
+  const titleProperty = Object.values(properties).find((property) => property.type === "title");
+  return getPropertyText(titleProperty);
+};
 
-function normalizeNotionPage(page: NotionPage) {
-  const properties = page.properties ?? {};
+const normalizePage = (page: NotionPage): AgentLog => {
+  const properties = page.properties || {};
+  const title = pageTitle(properties);
+  const agent = findFirstText(properties, ["Agent", "Owner", "Worker", "Name"]) || "System Agent";
+  const action =
+    findFirstText(properties, ["Action", "Task", "Event", "Activity", "Log", "Name", "Title"]) ||
+    title ||
+    "Agent activity";
+  const result = findFirstText(properties, ["Result", "Outcome", "Summary", "Detail", "Notes"]) || "Logged";
+  const status = findFirstText(properties, ["Status", "State", "Stage"]) || "Logged";
+  const timestamp =
+    findFirstText(properties, ["Time", "Date", "Timestamp", "Created", "Last edited"]) ||
+    page.created_time ||
+    page.last_edited_time ||
+    new Date().toISOString();
 
   return {
     id: page.id,
-    timestamp: textFromProperty(properties.Timestamp) || textFromProperty(properties.Time) || page.created_time || "",
-    agent: textFromProperty(properties.Agent) || "Unknown Agent",
-    action: textFromProperty(properties.Action) || textFromProperty(properties.Name) || "Logged activity",
-    result: textFromProperty(properties.Result) || textFromProperty(properties.Summary) || "Not provided",
-    status: textFromProperty(properties.Status) || "ok",
+    timestamp,
+    agent,
+    action,
+    result,
+    status,
     source: "notion",
+    url: page.url,
   };
-}
+};
 
-export async function GET(request: Request) {
-  const url = new URL(request.url);
-  const agentFilter = url.searchParams.get("agent");
-  const notionToken = process.env.NOTION_API_KEY ?? process.env.NOTION_TOKEN;
-  const databaseId = process.env.NOTION_AGENT_LOGS_DATABASE_ID;
-
-  if (!notionToken || !databaseId) {
-    return Response.json({ success: true, source: "fallback", logs: fallbackLogs(agentFilter) });
-  }
-
-  const response = await fetch(`https://api.notion.com/v1/databases/${databaseId}/query`, {
+const queryNotion = async (endpoint: string, notionVersion: string) => {
+  const response = await fetch(endpoint, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${notionToken}`,
+      Authorization: `Bearer ${NOTION_TOKEN}`,
       "Content-Type": "application/json",
-      "Notion-Version": NOTION_VERSION,
+      "Notion-Version": notionVersion,
     },
-    body: JSON.stringify({
-      page_size: 50,
-      sorts: [{ timestamp: "created_time", direction: "descending" }],
-    }),
+    body: JSON.stringify({ page_size: 25 }),
+    cache: "no-store",
   });
 
+  const payload = await response.json().catch(() => ({}));
+
   if (!response.ok) {
-    const detail = await response.text();
-    return Response.json(
-      { success: false, source: "notion", message: "Failed to load Notion agent logs", detail },
-      { status: 502 },
+    throw new Error(payload?.message || `Notion responded with ${response.status}`);
+  }
+
+  return payload;
+};
+
+export async function GET() {
+  if (!NOTION_TOKEN) {
+    return NextResponse.json<LogsResponse>(
+      {
+        logs: [],
+        source: "not-configured",
+        message: "Set NOTION_API_KEY or NOTION_TOKEN to read Agent Logs from Notion.",
+        updatedAt: new Date().toISOString(),
+      },
+      { status: 200 },
     );
   }
 
-  const body = (await response.json()) as { results?: NotionPage[] };
-  const logs = (body.results ?? [])
-    .map(normalizeNotionPage)
-    .filter((entry) => !agentFilter || entry.agent.toLowerCase() === agentFilter.toLowerCase());
+  try {
+    let payload;
 
-  return Response.json({ success: true, source: "notion", logs });
+    try {
+      payload = await queryNotion(
+        `https://api.notion.com/v1/data_sources/${NOTION_DATA_SOURCE_ID}/query`,
+        NOTION_DATA_SOURCE_VERSION,
+      );
+    } catch {
+      // TODO(integrations): Remove database fallback after the Notion workspace is fully migrated to data sources.
+      payload = await queryNotion(
+        `https://api.notion.com/v1/databases/${NOTION_DATA_SOURCE_ID}/query`,
+        NOTION_VERSION,
+      );
+    }
+
+    const logs = Array.isArray(payload.results) ? payload.results.map(normalizePage) : [];
+
+    return NextResponse.json<LogsResponse>({
+      logs,
+      source: "notion",
+      updatedAt: new Date().toISOString(),
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unable to read Notion Agent Logs.";
+
+    return NextResponse.json<LogsResponse>(
+      {
+        logs: [],
+        source: "error",
+        message,
+        updatedAt: new Date().toISOString(),
+      },
+      { status: 502 },
+    );
+  }
 }

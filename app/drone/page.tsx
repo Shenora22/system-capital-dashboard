@@ -160,11 +160,11 @@ export default function DronePage() {
   }
 
   return (
-    <main className="min-h-screen overflow-hidden bg-[#04070d] text-slate-100">
+    <main data-pitch-capture="dashboard" className="min-h-screen overflow-hidden bg-[#04070d] text-slate-100">
       <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.22),transparent_32%),radial-gradient(circle_at_80%_10%,rgba(249,115,22,0.16),transparent_28%),linear-gradient(180deg,#08111f_0%,#04070d_60%)]" />
 
       <section className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-5 py-6 sm:px-8 lg:px-10">
-        <header className="rounded-[2rem] border border-cyan-300/15 bg-white/[0.04] p-6 shadow-2xl shadow-cyan-950/30 backdrop-blur">
+        <header data-pitch-capture="hero" className="rounded-[2rem] border border-cyan-300/15 bg-white/[0.04] p-6 shadow-2xl shadow-cyan-950/30 backdrop-blur">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <p className="mb-3 inline-flex rounded-full border border-cyan-300/25 bg-cyan-300/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.32em] text-cyan-200">
@@ -204,7 +204,7 @@ export default function DronePage() {
         </section>
 
         <section className="grid gap-6 xl:grid-cols-[1.45fr_0.9fr]">
-          <div className="rounded-[2rem] border border-cyan-300/15 bg-slate-950/75 p-5 shadow-2xl shadow-slate-950/50">
+          <div data-pitch-capture="map" className="rounded-[2rem] border border-cyan-300/15 bg-slate-950/75 p-5 shadow-2xl shadow-slate-950/50">
             <div className="mb-4 flex items-center justify-between gap-4">
               <div>
                 <h2 className="text-xl font-black text-white">Tactical airspace map</h2>
@@ -247,7 +247,7 @@ export default function DronePage() {
             </div>
           </div>
 
-          <aside className="flex flex-col gap-4">
+          <aside data-pitch-capture="automation" className="flex flex-col gap-4">
             <div className="rounded-[2rem] border border-white/10 bg-white/[0.045] p-5">
               <p className="text-xs font-bold uppercase tracking-[0.22em] text-cyan-200">Selected asset</p>
               {selectedDrone && (
@@ -285,7 +285,7 @@ export default function DronePage() {
         </section>
 
         <section className="grid gap-6 xl:grid-cols-[1fr_1fr]">
-          <Panel title="AI recommendations" helper="All actions are staged for review only; no live commands are sent.">
+          <Panel title="AI recommendations" helper="All actions are staged for review only; no live commands are sent." captureName="recommendations">
             <div className="space-y-3">
               {snapshot.recommendations.map((recommendation) => {
                 const drone = snapshot.fleet.find((unit) => unit.id === recommendation.droneId);
@@ -315,7 +315,7 @@ export default function DronePage() {
             </div>
           </Panel>
 
-          <Panel title="Alert review queue" helper="Severity, confidence, and field details for the operator review loop.">
+          <Panel title="Alert review queue" helper="Severity, confidence, and field details for the operator review loop." captureName="alerts">
             <div className="space-y-3">
               {snapshot.alerts.map((alert) => {
                 const drone = snapshot.fleet.find((unit) => unit.id === alert.droneId);
@@ -338,7 +338,7 @@ export default function DronePage() {
           </Panel>
         </section>
 
-        <Panel title="Fleet telemetry" helper="Mock data is structured to match the fleet API and future Supabase ingestion.">
+        <Panel title="Fleet telemetry" helper="Mock data is structured to match the fleet API and future Supabase ingestion." captureName="telemetry">
           <div className="overflow-hidden rounded-2xl border border-white/10">
             <table className="w-full min-w-[760px] border-collapse text-left text-sm">
               <thead className="bg-white/[0.06] text-xs uppercase tracking-[0.18em] text-slate-400">
@@ -401,9 +401,9 @@ function HealthBar({ label, value }: { label: string; value: number }) {
   );
 }
 
-function Panel({ title, helper, children }: { title: string; helper: string; children: React.ReactNode }) {
+function Panel({ title, helper, children, captureName }: { title: string; helper: string; children: React.ReactNode; captureName?: string }) {
   return (
-    <section className="rounded-[2rem] border border-white/10 bg-white/[0.045] p-5 backdrop-blur">
+    <section data-pitch-capture={captureName} className="rounded-[2rem] border border-white/10 bg-white/[0.045] p-5 backdrop-blur">
       <div className="mb-4">
         <h2 className="text-xl font-black text-white">{title}</h2>
         <p className="mt-1 text-sm text-slate-400">{helper}</p>

@@ -13,7 +13,8 @@
     "test:tally-production-flow": "node automation/scripts/verify-tally-production-flow.mjs",
     "validate:n8n-workflows": "node automation/scripts/validate-n8n-workflows.mjs",
     "export:n8n-lead-workflow": "node automation/scripts/export-n8n-lead-workflow.mjs",
-    "validate:n8n-workflows:py": "python3 automation/scripts/validate-n8n-workflows.py"
+    "validate:n8n-workflows:py": "python3 automation/scripts/validate-n8n-workflows.py",
+    "capture:pitch-assets": "node automation/scripts/capture-pitch-assets.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.99.2",

@@ -75,10 +75,6 @@ Static marketing assets were moved to `public/marketing/**`. Legacy asset URLs a
 | `public/brand-kit/assets/*.svg` | `public/marketing/assets/brand-kit/*.svg` |
 | `public/carousels/system-capital/*.svg` | `public/marketing/carousels/system-capital/*.svg` |
 
-## Unresolved Issues
-
-- `/api/logs` is wired for Notion, but production requires `NOTION_API_KEY` or `NOTION_TOKEN` in the environment.
-- n8n webhook calls still point to localhost and need environment-specific configuration.
 ## Lead Capture Workflow Guarantees
 
 - Canonical workflow JSON stays at `automation/n8n/workflows/lead-capture-alert-template-v2.json`.

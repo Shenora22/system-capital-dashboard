@@ -169,7 +169,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={\n  \"success\": true,\n  \"message\": \"Lead captured successfully\"\n}",
+        "responseBody": "{\n  \"success\": true,\n  \"message\": \"Lead captured successfully\"\n}",
         "options": {}
       },
       "id": "respond_success",
@@ -197,7 +197,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={\n  \"success\": false,\n  \"message\": \"Lead capture payload rejected\"\n}",
+        "responseBody": "{\n  \"success\": false,\n  \"message\": \"Lead capture payload rejected\"\n}",
         "options": {
           "responseCode": 400
         }

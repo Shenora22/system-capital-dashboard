@@ -31,12 +31,6 @@ Marketing assets were moved under `public/marketing/`. Legacy public asset URLs 
 
 ## Local Development
 
-Existing routes remain in `app/` and should not be moved unless a route migration plan is created. Implementation code lives in subsystem folders and route files import it.
-
-Marketing assets were moved under `public/marketing/`. Legacy public asset URLs remain available through Next.js rewrites in `next.config.ts`.
-
-## Local Development
-
 ```bash
 npm install
 npm run dev
@@ -62,7 +56,7 @@ system-capital-lead
 
 Do not replace this with a `/webhook-test/` URL in production. The app composes the production path as `/webhook/system-capital-lead` when `N8N_BASE_URL` is provided, or validates `N8N_LEAD_WEBHOOK_URL` if an explicit webhook URL is configured.
 
-The corrected lead-capture n8n workflow lives at:
+The canonical lead-capture n8n workflow lives at:
 
 ```text
 automation/n8n/workflows/lead-capture-alert-template-v2.json
@@ -81,43 +75,6 @@ npm run export:n8n-lead-workflow
 ```
 
 To find the workflow in VS Code when the Explorer is focused on `app/automation/page.tsx`:
-
-## Build
-
-```bash
-npm run build
-```
-
-## n8n Workflow Backups
-
-Export workflows into `automation/n8n/workflows/` using stable names such as:
-
-- `lead-enrichment.workflow.json`
-- `weekly-report.workflow.json`
-
-Create a timestamped Git snapshot with:
-
-```bash
-npm run backup:n8n
-```
-
-or directly:
-
-```bash
-automation/scripts/backup-n8n-workflows.sh
-```
-
-For scheduled backup guidance, see [`automation/n8n/backup-plan.md`](./automation/n8n/backup-plan.md).
-
-## SkyTrace Seed Utility
-
-```bash
-SUPABASE_URL="https://your-project.supabase.co" \
-SUPABASE_SERVICE_ROLE_KEY="your-service-role-key" \
-npm run seed:skytrace
-```
-
-## Security Notes
 
 1. Open the repo root folder, not only the `app/` folder: `/workspace/system-capital-dashboard`.
 2. In Explorer, expand `automation` → `n8n` → `workflows`.

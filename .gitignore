@@ -4,3 +4,7 @@ node_modules
 .DS_Store
 .openclaw
 .codex
+
+# Generated pitch deck screenshot exports
+public/pitch-assets/*.png
+!public/pitch-assets/.gitkeep

@@ -1,1336 +1,414 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { createClient } from "@supabase/supabase-js";
-import mapboxgl from "mapbox-gl";
+import { useEffect, useMemo, useState } from "react";
+import {
+  getDroneMissionSnapshot,
+  type AutomationActionType,
+  type DroneAlert,
+  type DroneFleetUnit,
+  type DroneMissionSnapshot,
+  type DroneRecommendation,
+} from "@/lib/drone-mission";
 
-const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const SUPABASE_PUBLISHABLE_KEY =
-  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-const INACTIVITY_THRESHOLD_MS = 5 * 60 * 1000;
-const EVENT_DEDUPE_WINDOW_MS = 5 * 1000;
-const FOLLOW_UPDATE_THRESHOLD_METERS = 25;
-const MEANINGFUL_MOVEMENT_METERS = 8;
-const MOVEMENT_TRAIL_LOOKBACK_POINTS = 6;
-const RANDOM_MOVEMENT_DEGREES = 0.00035;
-const HOME_BASE: [number, number] = [-74.006, 40.7128];
-// TODO(integrations): Move drone telemetry persistence behind integrations/supabase once schema is finalized.
-const supabase =
-  SUPABASE_URL && SUPABASE_PUBLISHABLE_KEY
-    ? createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY)
-    : null;
-
-if (MAPBOX_TOKEN) {
-  mapboxgl.accessToken = MAPBOX_TOKEN;
-}
-
-type DroneRow = {
-  drone_id: string;
-  drone_name?: string;
-  drone_status?: string;
-  latitude: number;
-  longitude: number;
-  altitude?: number | null;
-  battery_pct?: number | null;
-  last_ping?: string;
-};
-
-type Alert = {
+type ActionLog = {
   id: string;
   message: string;
-  type: "warning" | "info";
-  timestamp: number;
+  createdAt: string;
 };
 
-type Recommendation = {
-  id: string;
-  droneId: string;
-  action: "MONITOR" | "RETURN_HOME" | "CHARGE_REQUIRED" | "CHECK_IN_REQUIRED";
-  reason: string;
-  timestamp: number;
+type ActionResponse = {
+  ok: boolean;
+  message: string;
+  audit?: {
+    id: string;
+    createdAt: string;
+  };
 };
 
-type EventLogItem = {
-  id: string;
-  timestamp: number;
-  droneName: string;
-  action: string;
-  reason: string;
+const missionFallback = getDroneMissionSnapshot();
+
+const severityStyles: Record<DroneAlert["severity"], string> = {
+  critical: "border-red-400/60 bg-red-500/15 text-red-100",
+  high: "border-orange-300/50 bg-orange-400/15 text-orange-100",
+  medium: "border-yellow-300/40 bg-yellow-400/15 text-yellow-100",
+  low: "border-sky-300/40 bg-sky-400/15 text-sky-100",
 };
 
-type BatteryBand = "CRITICAL" | "LOW" | "NORMAL" | "UNKNOWN";
-
-type PreviousDroneState = {
-  action: Recommendation["action"];
-  batteryBand: BatteryBand;
-  batteryPct: number | null;
-  isStalled: boolean;
-  needsCheckIn: boolean;
+const priorityStyles: Record<DroneRecommendation["priority"], string> = {
+  immediate: "bg-red-400 text-slate-950",
+  elevated: "bg-amber-300 text-slate-950",
+  watch: "bg-cyan-300 text-slate-950",
 };
 
-type DroneHealthSignals = {
-  droneId: string;
-  droneName: string;
-  isPingRecent: boolean;
-  hasMovement: boolean;
-  isStalled: boolean;
-  needsCheckIn: boolean;
-};
-
-const RECOMMENDATION_COLORS: Record<
-  Recommendation["action"],
-  { background: string; border: string; color: string }
-> = {
-  RETURN_HOME: {
-    background: "rgba(255, 77, 77, 0.12)",
-    border: "rgba(255, 77, 77, 0.35)",
-    color: "#ff4d4d",
-  },
-  CHARGE_REQUIRED: {
-    background: "rgba(250, 204, 21, 0.12)",
-    border: "rgba(250, 204, 21, 0.35)",
-    color: "#facc15",
-  },
-  CHECK_IN_REQUIRED: {
-    background: "rgba(251, 146, 60, 0.12)",
-    border: "rgba(251, 146, 60, 0.35)",
-    color: "#fb923c",
-  },
-  MONITOR: {
-    background: "rgba(110, 231, 255, 0.12)",
-    border: "rgba(110, 231, 255, 0.35)",
-    color: "#6ee7ff",
-  },
-};
-
-function updateMarkerColor(marker: mapboxgl.Marker, color: string) {
-  marker
-    .getElement()
-    .querySelectorAll<SVGPathElement>("svg path")
-    .forEach((path) => {
-      if (path.getAttribute("fill") !== "none") {
-        path.setAttribute("fill", color);
-      }
-
-      if (path.getAttribute("stroke") !== "none") {
-        path.setAttribute("stroke", color);
-      }
-    });
+function formatTime(value: string) {
+  return new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit",
+  }).format(new Date(value));
 }
 
-function updateMarkerUrgency(
-  marker: mapboxgl.Marker,
-  action: Recommendation["action"]
-) {
-  const element = marker.getElement();
-
-  element.classList.toggle("skytrace-marker-responding", action !== "MONITOR");
-  element.classList.toggle("skytrace-marker-return-home", action === "RETURN_HOME");
+function getBatteryColor(value: number) {
+  if (value < 25) return "bg-red-400";
+  if (value < 50) return "bg-amber-300";
+  return "bg-emerald-300";
 }
 
-function getRecommendationAction(
-  battery: number,
-  lastPingTime: number,
-  now: number
-): Recommendation["action"] {
-  const isInactive =
-    !lastPingTime || now - lastPingTime > INACTIVITY_THRESHOLD_MS;
-
-  if (battery < 35 && isInactive) return "RETURN_HOME";
-  if (battery < 20) return "RETURN_HOME";
-  if (battery < 35) return "CHARGE_REQUIRED";
-  if (isInactive) return "CHECK_IN_REQUIRED";
-
-  return "MONITOR";
-}
-
-function getBatteryBand(batteryPct?: number | null): BatteryBand {
-  if (batteryPct === null || batteryPct === undefined) return "UNKNOWN";
-  if (batteryPct < 20) return "CRITICAL";
-  if (batteryPct < 35) return "LOW";
-
-  return "NORMAL";
-}
-
-function isRecentPing(
-  lastPing?: string,
-  now = Date.now(),
-  thresholdMs = INACTIVITY_THRESHOLD_MS
-): boolean {
-  if (!lastPing) return false;
-
-  const lastPingTime = new Date(lastPing).getTime();
-
-  return Number.isFinite(lastPingTime) && now - lastPingTime <= thresholdMs;
-}
-
-function getDistanceMeters(
-  from: [number, number],
-  to: [number, number]
-): number {
-  return new mapboxgl.LngLat(from[0], from[1]).distanceTo(
-    new mapboxgl.LngLat(to[0], to[1])
-  );
-}
-
-function hasMeaningfulMovement(
-  trail: [number, number][] = [],
-  thresholdMeters = MEANINGFUL_MOVEMENT_METERS
-): boolean {
-  if (trail.length < MOVEMENT_TRAIL_LOOKBACK_POINTS) return true;
-
-  const recentTrail = trail.slice(-MOVEMENT_TRAIL_LOOKBACK_POINTS);
-  const firstPoint = recentTrail[0];
-  const lastPoint = recentTrail[recentTrail.length - 1];
-
-  return getDistanceMeters(firstPoint, lastPoint) >= thresholdMeters;
-}
-
-function getDroneHealthSignals(
-  drone: DroneRow,
-  trail: [number, number][] = [],
-  now = Date.now()
-): DroneHealthSignals {
-  const droneName = drone.drone_name ?? drone.drone_id;
-  const isPingRecentValue = isRecentPing(drone.last_ping, now);
-  const hasMovement = hasMeaningfulMovement(trail);
-  const normalizedStatus = drone.drone_status?.toLowerCase() ?? "";
-  const isStationaryStatus =
-    normalizedStatus.includes("charging") ||
-    normalizedStatus.includes("docked") ||
-    normalizedStatus.includes("idle");
+function getMapPosition(drone: DroneFleetUnit) {
+  const bounds = {
+    minLng: -74.024,
+    maxLng: -73.998,
+    minLat: 40.704,
+    maxLat: 40.72,
+  };
+  const x = ((drone.longitude - bounds.minLng) / (bounds.maxLng - bounds.minLng)) * 100;
+  const y = 100 - ((drone.latitude - bounds.minLat) / (bounds.maxLat - bounds.minLat)) * 100;
 
   return {
-  droneId: drone.drone_id,
-  droneName,
-  isPingRecent: isPingRecentValue,
-  hasMovement,
-  isStalled: isPingRecentValue && !hasMovement && !isStationaryStatus,
-  needsCheckIn: !isPingRecentValue,
-};
-}
-
-function getRandomMovementOffset(): number {
-  return (Math.random() - 0.5) * RANDOM_MOVEMENT_DEGREES;
+    left: `${Math.min(92, Math.max(8, x))}%`,
+    top: `${Math.min(88, Math.max(12, y))}%`,
+  };
 }
 
 export default function DronePage() {
-  const [droneData, setDroneData] = useState<DroneRow[]>([]);
-  const [followDroneId, setFollowDroneId] = useState<string | null>(null);
-  const [selectedDroneId, setSelectedDroneId] = useState<string | null>(null);
-  const [alerts, setAlerts] = useState<Alert[]>([]);
-  const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
-  const [eventLog, setEventLog] = useState<EventLogItem[]>([]);
-  
- 
-  const mapContainerRef = useRef<HTMLDivElement | null>(null);
-  const mapRef = useRef<mapboxgl.Map | null>(null);
-  const markersRef = useRef<Record<string, mapboxgl.Marker>>({});
-  const trailsRef = useRef<Record<string, [number, number][]>>({});
-  const droneDataRef = useRef<DroneRow[]>([]);
-  const lastFollowCenterRef = useRef<[number, number] | null>(null);
-  const executedActionsRef = useRef<Set<string>>(new Set());
-  const previousDroneStatesRef = useRef<Record<string, PreviousDroneState>>({});
-  const lastEventTimesRef = useRef<Record<string, number>>({});
-
-  const selectedDrone = droneData.find(
-    (drone) => drone.drone_id === selectedDroneId
-  );
-  const followedDrone = droneData.find(
-    (drone) => drone.drone_id === followDroneId
-  );
-  const selectedDroneName = selectedDrone
-    ? selectedDrone.drone_name ?? selectedDrone.drone_id
-    : null;
-  const followedDroneName = followedDrone
-    ? followedDrone.drone_name ?? followedDrone.drone_id
-    : null;
-
-  const flyToDrone = useCallback((drone: DroneRow, duration = 1000) => {
-    if (!mapRef.current) return;
-
-    const center: [number, number] = [
-      Number(drone.longitude),
-      Number(drone.latitude),
-    ];
-
-    mapRef.current.flyTo({
-      center,
-      zoom: 15,
-      pitch: 60,
-      bearing: 30,
-      duration,
-      essential: true,
-    });
-
-    lastFollowCenterRef.current = center;
-  }, []);
-
-  const selectAndFollowDrone = useCallback(
-    (droneId: string) => {
-      const drone = droneDataRef.current.find((item) => item.drone_id === droneId);
-
-      setFollowDroneId(droneId);
-      setSelectedDroneId(droneId);
-
-      if (drone) {
-        flyToDrone(drone);
-      }
+  const [snapshot, setSnapshot] = useState<DroneMissionSnapshot>(missionFallback);
+  const [selectedDroneId, setSelectedDroneId] = useState(missionFallback.fleet[0]?.id ?? "");
+  const [actionLogs, setActionLogs] = useState<ActionLog[]>([
+    {
+      id: "demo-log-1",
+      message: "Mission snapshot loaded from mock fleet data.",
+      createdAt: missionFallback.generatedAt,
     },
-    [flyToDrone]
+  ]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [pendingActionId, setPendingActionId] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadFleet() {
+      try {
+        const response = await fetch("/api/drone/fleet", { cache: "no-store" });
+        if (!response.ok) return;
+
+        const data = (await response.json()) as DroneMissionSnapshot;
+        if (isMounted) {
+          setSnapshot(data);
+          setSelectedDroneId((current) => current || data.fleet[0]?.id || "");
+          setActionLogs((current) => [
+            {
+              id: `fleet-refresh-${Date.now()}`,
+              message: `Fleet API refreshed ${data.fleet.length} drones and ${data.alerts.length} alerts.`,
+              createdAt: data.generatedAt,
+            },
+            ...current.slice(0, 4),
+          ]);
+        }
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    }
+
+    loadFleet();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const selectedDrone = useMemo(
+    () => snapshot.fleet.find((drone) => drone.id === selectedDroneId) ?? snapshot.fleet[0],
+    [selectedDroneId, snapshot.fleet],
   );
 
-  useEffect(() => {
-    droneDataRef.current = droneData;
-  }, [droneData]);
-
-  // 1. Load initial drone data
-  useEffect(() => {
-  if (!supabase) return;
-
-  const supabaseClient = supabase; // 👈 ADD THIS LINE
-
-  async function fetchDrones() {
-    const { data, error } = await supabaseClient // 👈 CHANGE THIS
-      .from("drone_latest_location")
-      .select("*");
-
-      if (error) {
-        console.error("Supabase fetch error:", error);
-        return;
-      }
-
-      setDroneData(data as DroneRow[]);
-    }
-
-    fetchDrones();
-  }, []);
-
-  // 2. Listen for Supabase real-time updates
-  useEffect(() => {
-    if (!supabase) return;
-
-    const channel = supabase
-      .channel("drone-location-updates")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "drone_latest_location",
-        },
-        (payload) => {
-          const updatedDrone = payload.new as DroneRow;
-
-          setDroneData((current) => {
-            const exists = current.some(
-              (drone) => drone.drone_id === updatedDrone.drone_id
-            );
-
-            if (!exists) return [...current, updatedDrone];
-
-            return current.map((drone) =>
-              drone.drone_id === updatedDrone.drone_id
-                ? updatedDrone
-                : drone
-            );
-          });
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
-
-  // 3. Create map once
-  useEffect(() => {
-    if (!mapContainerRef.current || mapRef.current) return;
-    if (!MAPBOX_TOKEN) return;
-
-    mapRef.current = new mapboxgl.Map({
-      container: mapContainerRef.current,
-      style: "mapbox://styles/mapbox/dark-v11",
-      center: [-74.006, 40.7128],
-      zoom: 13,
-      pitch: 45,
-      bearing: -10,
-    });
-
-    mapRef.current.addControl(new mapboxgl.NavigationControl(), "top-right");
-
-    return () => {
-      Object.values(markersRef.current).forEach((marker) => marker.remove());
-      markersRef.current = {};
-      mapRef.current?.remove();
-      mapRef.current = null;
-    };
-  }, []);
-
-  // 4. Simulate coordinate updates every second
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const now = Date.now();
-
-      setDroneData((current) =>
-        current.map((drone, index) => {
-          const simulatedBattery =
-            index === 0 ? 25 : index === 1 ? 15 : drone.battery_pct;
-          const simulatedLastPing =
-            index === 2
-              ? new Date(Date.now() - 11 * 60 * 1000).toISOString()
-              : drone.last_ping;
-          const lastPingTime = simulatedLastPing
-            ? new Date(simulatedLastPing).getTime()
-            : 0;
-          const recommendationAction = getRecommendationAction(
-            simulatedBattery ?? 100,
-            lastPingTime,
-            now
-          );
-          const shouldReturnHome = recommendationAction === "RETURN_HOME";
-          const shouldStop = recommendationAction === "CHARGE_REQUIRED";
-          const randomLongitudeOffset = getRandomMovementOffset();
-          const randomLatitudeOffset = getRandomMovementOffset();
-          const targetLng = shouldReturnHome
-            ? HOME_BASE[0]
-            : drone.longitude + randomLongitudeOffset;
-          const targetLat = shouldReturnHome
-            ? HOME_BASE[1]
-            : drone.latitude + randomLatitudeOffset;
-          const smoothing = shouldReturnHome ? 0.05 : 1;
-          const nextLatitude = shouldStop
-            ? drone.latitude
-            : drone.latitude + (targetLat - drone.latitude) * smoothing;
-          const nextLongitude = shouldStop
-            ? drone.longitude
-            : drone.longitude + (targetLng - drone.longitude) * smoothing;
-
-          return {
-            ...drone,
-            battery_pct: simulatedBattery,
-            latitude: nextLatitude,
-            longitude: nextLongitude,
-            last_ping: simulatedLastPing,
-          };
-        })
-      );
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, []);
-
-  // 5. Create/move markers + draw trails + detect alerts
-  useEffect(() => {
-    if (!mapRef.current) return;
-
-    const map = mapRef.current;
-
-    droneData.forEach((drone) => {
-      const battery = drone.battery_pct ?? 100;
-      const recommendationAction =
-        recommendations.find(
-          (recommendation) => recommendation.droneId === drone.drone_id
-        )?.action ?? "MONITOR";
-      const markerColor = RECOMMENDATION_COLORS[recommendationAction].color;
-
-      if (battery < 30) {
-        setAlerts((prev) => {
-          const exists = prev.find(
-            (alert) => alert.id === `${drone.drone_id}-low-battery`
-          );
-
-          if (exists) return prev;
-
-          return [
-            {
-              id: `${drone.drone_id}-low-battery`,
-              message: `${
-                drone.drone_name || drone.drone_id
-              } battery low (${battery}%)`,
-              type: "warning",
-              timestamp: Date.now(),
-            },
-            ...prev,
-          ];
-        });
-      }
-
-      const lngLat: [number, number] = [
-        Number(drone.longitude),
-        Number(drone.latitude),
-      ];
-
-      if (!trailsRef.current[drone.drone_id]) {
-        trailsRef.current[drone.drone_id] = [];
-      }
-
-      const trail = trailsRef.current[drone.drone_id];
-      trail.push(lngLat);
-
-      if (trail.length > 30) {
-        trail.shift();
-      }
-
-      const healthSignals = getDroneHealthSignals(drone, trail);
-
-      if (healthSignals.isStalled || healthSignals.needsCheckIn) {
-        setAlerts((prev) => {
-          const alertId = healthSignals.isStalled
-            ? `${drone.drone_id}-stalled`
-            : `${drone.drone_id}-check-in`;
-          const exists = prev.find((alert) => alert.id === alertId);
-
-          if (exists) return prev;
-
-          return [
-            {
-              id: alertId,
-              message: healthSignals.isStalled
-                ? `${healthSignals.droneName} appears stalled`
-                : `${healthSignals.droneName} needs check-in`,
-              type: "warning",
-              timestamp: Date.now(),
-            },
-            ...prev,
-          ];
-        });
-      }
-
-      let marker = markersRef.current[drone.drone_id];
-
-      if (!marker) {
-        marker = new mapboxgl.Marker({
-          color: markerColor,
-          scale: 0.9,
-        })
-          .setLngLat(lngLat)
-          .addTo(map);
-
-        marker.getElement().addEventListener("click", () => {
-          selectAndFollowDrone(drone.drone_id);
-        });
-
-        const el = marker.getElement();
-        el.style.transition = "transform 0.2s ease";
-        updateMarkerUrgency(marker, recommendationAction);
-
-        markersRef.current[drone.drone_id] = marker;
-      } else {
-        marker.setLngLat(lngLat);
-        updateMarkerColor(marker, markerColor);
-        updateMarkerUrgency(marker, recommendationAction);
-      }
-
-      const sourceId = `trail-${drone.drone_id}`;
-      const layerId = `trail-layer-${drone.drone_id}`;
-
-      const trailData: GeoJSON.Feature<GeoJSON.LineString> = {
-        type: "Feature",
-        properties: {},
-        geometry: {
-          type: "LineString",
-          coordinates: trail,
-        },
-      };
-
-      const existingSource = map.getSource(sourceId) as
-        | mapboxgl.GeoJSONSource
-        | undefined;
-
-      if (existingSource) {
-        existingSource.setData(trailData);
-      } else {
-        map.addSource(sourceId, {
-          type: "geojson",
-          data: trailData,
-        });
-
-        map.addLayer({
-          id: layerId,
-          type: "line",
-          source: sourceId,
-          paint: {
-            "line-color": battery < 30 ? "#ff4d4d" : "#6ee7ff",
-            "line-width": 2,
-            "line-opacity": 0.7,
-          },
-        });
-      }
-
-      const returnHomeSourceId = `return-home-${drone.drone_id}`;
-      const returnHomeLayerId = `return-home-layer-${drone.drone_id}`;
-      const returnHomeSource = map.getSource(returnHomeSourceId) as
-        | mapboxgl.GeoJSONSource
-        | undefined;
-
-      if (recommendationAction === "RETURN_HOME") {
-        const returnHomeData: GeoJSON.Feature<GeoJSON.LineString> = {
-          type: "Feature",
-          properties: {},
-          geometry: {
-            type: "LineString",
-            coordinates: [lngLat, HOME_BASE],
-          },
-        };
-
-        if (returnHomeSource) {
-          returnHomeSource.setData(returnHomeData);
-        } else {
-          map.addSource(returnHomeSourceId, {
-            type: "geojson",
-            data: returnHomeData,
-          });
-
-          map.addLayer({
-            id: returnHomeLayerId,
-            type: "line",
-            source: returnHomeSourceId,
-            paint: {
-              "line-color": RECOMMENDATION_COLORS.RETURN_HOME.color,
-              "line-width": 3,
-              "line-opacity": 0.85,
-              "line-dasharray": [1.5, 1],
-            },
-          });
-        }
-      } else if (returnHomeSource) {
-        if (map.getLayer(returnHomeLayerId)) {
-          map.removeLayer(returnHomeLayerId);
-        }
-
-        map.removeSource(returnHomeSourceId);
-      }
-    });
-  }, [droneData, recommendations, selectAndFollowDrone]);
-
-  // 6. Follow selected drone
-  useEffect(() => {
-    if (!mapRef.current || !followDroneId) {
-      lastFollowCenterRef.current = null;
-      return;
-    }
-
-    const droneToFollow = droneData.find(
-      (drone) => drone.drone_id === followDroneId
-    );
-
-    if (!droneToFollow) return;
-
-    const nextCenter: [number, number] = [
-      Number(droneToFollow.longitude),
-      Number(droneToFollow.latitude),
-    ];
-    const previousCenter = lastFollowCenterRef.current;
-    const movedMeters = previousCenter
-      ? getDistanceMeters(previousCenter, nextCenter)
-      : Number.POSITIVE_INFINITY;
-
-    if (movedMeters >= FOLLOW_UPDATE_THRESHOLD_METERS) {
-      flyToDrone(droneToFollow, 900);
-    }
-  }, [droneData, flyToDrone, followDroneId]);
-
-  // 7. Autonomous recommendation engine
-  useEffect(() => {
-    const now = Date.now();
-
-    const baseRecommendations: Recommendation[] = droneData.map((drone) => {
-      const battery = drone.battery_pct ?? 100;
-      const lastPingTime = drone.last_ping
-        ? new Date(drone.last_ping).getTime()
-        : 0;
-
-      const isInactive =
-        !lastPingTime || now - lastPingTime > INACTIVITY_THRESHOLD_MS;
-
-      const action = getRecommendationAction(battery, lastPingTime, now);
-      let reason = `${drone.drone_name ?? drone.drone_id} operating normally`;
-
-      if (action === "RETURN_HOME" && battery < 35 && isInactive) {
-        reason = `${
-          drone.drone_name ?? drone.drone_id
-        } has low battery and no recent ping`;
-      } else if (action === "RETURN_HOME") {
-        reason = `${drone.drone_name ?? drone.drone_id} battery critically low`;
-      } else if (action === "CHARGE_REQUIRED") {
-        reason = `${
-          drone.drone_name ?? drone.drone_id
-        } battery below safe threshold`;
-      } else if (action === "CHECK_IN_REQUIRED") {
-        reason = `${
-          drone.drone_name ?? drone.drone_id
-        } has not checked in recently`;
-      }
-
-      return {
-        id: `${drone.drone_id}-${action}`,
-        droneId: drone.drone_id,
-        action,
-        reason,
-        timestamp: now,
-      };
-    });
-
-    const healthRecommendations: Recommendation[] = droneData.flatMap((drone) => {
-      const healthSignals = getDroneHealthSignals(
-        drone,
-        trailsRef.current[drone.drone_id],
-        now
-      );
-
-      if (healthSignals.isStalled) {
-        return [
-          {
-            id: `${drone.drone_id}-stalled-check-in`,
-            droneId: drone.drone_id,
-            action: "CHECK_IN_REQUIRED",
-            reason: `${healthSignals.droneName} has recent pings but no meaningful movement`,
-            timestamp: now,
-          },
-        ];
-      }
-
-      if (healthSignals.needsCheckIn) {
-        return [
-          {
-            id: `${drone.drone_id}-missed-check-in`,
-            droneId: drone.drone_id,
-            action: "CHECK_IN_REQUIRED",
-            reason: `${healthSignals.droneName} missed its latest check-in window`,
-            timestamp: now,
-          },
-        ];
-      }
-
-      return [];
-    });
-
-    const nextRecommendations = [
-      ...baseRecommendations,
-      ...healthRecommendations,
-    ];
-
-    const timeout = window.setTimeout(() => {
-      setRecommendations(nextRecommendations);
-    }, 0);
-
-    return () => window.clearTimeout(timeout);
-  }, [droneData]);
-
-  // 8. Simulated command execution side effects
-  useEffect(() => {
-    recommendations.forEach((recommendation) => {
-      if (recommendation.action === "MONITOR") {
-        return;
-      }
-
-      const eventId = `${recommendation.droneId}-${recommendation.action}`;
-
-      if (executedActionsRef.current.has(eventId)) {
-        return;
-      }
-
-      executedActionsRef.current.add(eventId);
-
-      console.log("ACTION EXECUTED", {
-        action: recommendation.action,
-        droneId: recommendation.droneId,
-        command:
-          recommendation.action === "RETURN_HOME"
-            ? "SIMULATED_RETURN_HOME"
-            : recommendation.action === "CHECK_IN_REQUIRED"
-              ? "SIMULATED_CHECK_IN_REQUEST"
-              : "SIMULATED_CHARGE_HOLD",
-        homeBase:
-          recommendation.action === "RETURN_HOME" ? HOME_BASE : undefined,
-        reason: recommendation.reason,
+  const activeAlerts = snapshot.alerts.filter(
+    (alert) => alert.severity === "critical" || alert.severity === "high",
+  ).length;
+  const averageBattery = Math.round(
+    snapshot.fleet.reduce((total, drone) => total + drone.batteryPct, 0) / snapshot.fleet.length,
+  );
+  const averageSignal = Math.round(
+    snapshot.fleet.reduce((total, drone) => total + drone.signalPct, 0) / snapshot.fleet.length,
+  );
+
+  async function stageAction(recommendation: DroneRecommendation) {
+    setPendingActionId(recommendation.id);
+
+    try {
+      const response = await fetch("/api/drone/actions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          droneId: recommendation.droneId,
+          action: recommendation.action satisfies AutomationActionType,
+          recommendationId: recommendation.id,
+        }),
       });
-    });
-  }, [recommendations]);
+      const result = (await response.json()) as ActionResponse;
 
-  // 9. Event log for battery threshold and recommendation action changes
-  useEffect(() => {
-    const now = Date.now();
-    const nextEvents: EventLogItem[] = [];
-    const addEvent = (event: EventLogItem, dedupeKey: string) => {
-      const lastEventTime = lastEventTimesRef.current[dedupeKey] ?? 0;
-
-      if (now - lastEventTime < EVENT_DEDUPE_WINDOW_MS) {
-        return;
-      }
-
-      lastEventTimesRef.current[dedupeKey] = now;
-      nextEvents.push(event);
-    };
-
-    droneData.forEach((drone) => {
-      const recommendation = recommendations.find(
-        (item) => item.droneId === drone.drone_id
-      );
-      const currentAction = recommendation?.action ?? "MONITOR";
-      const currentBatteryBand = getBatteryBand(drone.battery_pct);
-      const currentBatteryPct = drone.battery_pct ?? null;
-      const healthSignals = getDroneHealthSignals(
-        drone,
-        trailsRef.current[drone.drone_id],
-        now
-      );
-      const previousState = previousDroneStatesRef.current[drone.drone_id];
-
-      if (!previousState) {
-        previousDroneStatesRef.current[drone.drone_id] = {
-          action: currentAction,
-          batteryBand: currentBatteryBand,
-          batteryPct: currentBatteryPct,
-          isStalled: healthSignals.isStalled,
-          needsCheckIn: healthSignals.needsCheckIn,
-        };
-        return;
-      }
-
-      if (previousState.batteryBand !== currentBatteryBand) {
-        const fromBattery =
-          previousState.batteryPct === null
-            ? "unknown"
-            : `${previousState.batteryPct}%`;
-        const toBattery =
-          currentBatteryPct === null ? "unknown" : `${currentBatteryPct}%`;
-
-        addEvent(
-          {
-            id: `${drone.drone_id}-battery-${now}`,
-            timestamp: now,
-            droneName: drone.drone_name ?? drone.drone_id,
-            action: "BATTERY_THRESHOLD",
-            reason: `Battery crossed from ${previousState.batteryBand} (${fromBattery}) to ${currentBatteryBand} (${toBattery})`,
-          },
-          `${drone.drone_id}-BATTERY_THRESHOLD`
-        );
-      }
-
-      if (previousState.action !== currentAction) {
-        addEvent(
-          {
-            id: `${drone.drone_id}-${currentAction}-${now}`,
-            timestamp: now,
-            droneName: drone.drone_name ?? drone.drone_id,
-            action: currentAction,
-            reason:
-              recommendation?.reason ??
-              `Action changed from ${previousState.action} to ${currentAction}`,
-          },
-          `${drone.drone_id}-${currentAction}`
-        );
-      }
-
-      if (!previousState.isStalled && healthSignals.isStalled) {
-        addEvent(
-          {
-            id: `${drone.drone_id}-stalled-${now}`,
-            timestamp: now,
-            droneName: healthSignals.droneName,
-            action: "STALLED",
-            reason: "Recent pings continue, but trail movement is below threshold",
-          },
-          `${drone.drone_id}-STALLED`
-        );
-      }
-
-      if (!previousState.needsCheckIn && healthSignals.needsCheckIn) {
-        addEvent(
-          {
-            id: `${drone.drone_id}-check-in-${now}`,
-            timestamp: now,
-            droneName: healthSignals.droneName,
-            action: "CHECK_IN_REQUIRED",
-            reason: "Last ping is outside the check-in window",
-          },
-          `${drone.drone_id}-CHECK_IN_SIGNAL`
-        );
-      }
-
-      previousDroneStatesRef.current[drone.drone_id] = {
-        action: currentAction,
-        batteryBand: currentBatteryBand,
-        batteryPct: currentBatteryPct,
-        isStalled: healthSignals.isStalled,
-        needsCheckIn: healthSignals.needsCheckIn,
-      };
-    });
-
-    if (!nextEvents.length) return;
-
-    const timeout = window.setTimeout(() => {
-      setEventLog((current) => [...nextEvents, ...current].slice(0, 20));
-    }, 0);
-
-    return () => window.clearTimeout(timeout);
-  }, [droneData, recommendations]);
+      setActionLogs((current) => [
+        {
+          id: result.audit?.id ?? `action-${Date.now()}`,
+          message: result.message,
+          createdAt: result.audit?.createdAt ?? new Date().toISOString(),
+        },
+        ...current.slice(0, 5),
+      ]);
+    } finally {
+      setPendingActionId(null);
+    }
+  }
 
   return (
-    <main
-      style={{
-        display: "flex",
-        minHeight: "100vh",
-        background: "#050a0e",
-        color: "white",
-        fontFamily: "Inter, Arial, sans-serif",
-      }}
-    >
-      <aside
-        style={{
-          width: "320px",
-          background: "rgba(15, 23, 32, 0.95)",
-          borderRight: "1px solid rgba(110, 231, 255, 0.1)",
-          padding: "24px",
-          boxSizing: "border-box",
-        }}
-      >
-        <h1 style={{ margin: 0, fontSize: "28px" }}>SkyTrace</h1>
+    <main className="min-h-screen overflow-hidden bg-[#04070d] text-slate-100">
+      <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.22),transparent_32%),radial-gradient(circle_at_80%_10%,rgba(249,115,22,0.16),transparent_28%),linear-gradient(180deg,#08111f_0%,#04070d_60%)]" />
 
-        <p
-          style={{
-            color: "#6ee7ff",
-            fontSize: "11px",
-            letterSpacing: "0.14em",
-            textTransform: "uppercase",
-            marginTop: "8px",
-          }}
-        >
-          Real-Time Drone Intelligence
-        </p>
-
-        <div style={{ marginTop: "24px", color: "#94a3b8", fontSize: "14px" }}>
-          {droneData.length} drone{droneData.length === 1 ? "" : "s"} online
-        </div>
-
-        <div style={{ marginTop: "20px" }}>
-          {droneData.map((drone) => {
-            const isLow = (drone.battery_pct ?? 100) < 30;
-            const isSelected = selectedDroneId === drone.drone_id;
-
-            return (
-              <div
-                key={drone.drone_id}
-                onClick={() => {
-                  selectAndFollowDrone(drone.drone_id);
-                }}
-                style={{
-                  padding: "14px",
-                  borderRadius: "12px",
-                  marginBottom: "12px",
-                  cursor: "pointer",
-                  background: isSelected
-                    ? "rgba(110, 231, 255, 0.12)"
-                    : "rgba(255,255,255,0.03)",
-                  border: isSelected
-                    ? "1px solid rgba(110, 231, 255, 0.45)"
-                    : "1px solid rgba(110, 231, 255, 0.1)",
-                }}
-              >
-                <div style={{ fontWeight: 700 }}>
-                  {drone.drone_name ?? "Drone"}
-                </div>
-
-                <div
-                  style={{
-                    marginTop: "6px",
-                    fontSize: "13px",
-                    color: isLow ? "#ff4d4d" : "#94a3b8",
-                  }}
-                >
-                  Battery:{" "}
-                  {drone.battery_pct === null || drone.battery_pct === undefined
-                    ? "N/A"
-                    : `${drone.battery_pct}%`}
-                </div>
-
-                <div
-                  style={{
-                    fontSize: "12px",
-                    marginTop: "6px",
-                    color: isLow ? "#ff4d4d" : "#6ee7ff",
-                    fontWeight: 700,
-                  }}
-                >
-                  {isLow ? "LOW BATTERY" : "ACTIVE"}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        <div
-          style={{
-            marginTop: "24px",
-            background: "rgba(255,255,255,0.03)",
-            border: "1px solid rgba(110, 231, 255, 0.1)",
-            borderRadius: "12px",
-            padding: "14px",
-          }}
-        >
-          <h3 style={{ marginTop: 0, fontSize: "15px" }}>Alerts</h3>
-
-          {alerts.length === 0 && (
-            <p style={{ color: "#94a3b8", fontSize: "13px" }}>
-              No active alerts
-            </p>
-          )}
-
-          {alerts.map((alert) => (
-            <div
-              key={alert.id}
-              style={{
-                background:
-                  alert.type === "warning"
-                    ? "rgba(255, 77, 77, 0.12)"
-                    : "rgba(110, 231, 255, 0.12)",
-                color: alert.type === "warning" ? "#ff4d4d" : "#6ee7ff",
-                padding: "10px",
-                borderRadius: "8px",
-                marginBottom: "8px",
-                fontSize: "12px",
-                fontWeight: 700,
-              }}
-            >
-              ⚠️ {alert.message}
+      <section className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-5 py-6 sm:px-8 lg:px-10">
+        <header className="rounded-[2rem] border border-cyan-300/15 bg-white/[0.04] p-6 shadow-2xl shadow-cyan-950/30 backdrop-blur">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <p className="mb-3 inline-flex rounded-full border border-cyan-300/25 bg-cyan-300/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.32em] text-cyan-200">
+                SkyTrace Mission Control
+              </p>
+              <h1 className="max-w-3xl text-4xl font-black tracking-tight text-white sm:text-5xl">
+                Demo-ready drone intelligence for System Capital.
+              </h1>
+              <p className="mt-4 max-w-2xl text-base leading-7 text-slate-300">
+                Mock fleet telemetry, live-style alerts, AI recommendations, and review-only automation actions in one pitch-ready operations view.
+              </p>
             </div>
-          ))}
-        </div>
-
-        <div
-          style={{
-            marginTop: "24px",
-            background: "rgba(255,255,255,0.03)",
-            border: "1px solid rgba(110, 231, 255, 0.1)",
-            borderRadius: "12px",
-            padding: "14px",
-          }}
-        >
-          <h3 style={{ marginTop: 0, fontSize: "15px" }}>
-            Recommendations
-          </h3>
-
-          {recommendations.length === 0 && (
-            <p style={{ color: "#94a3b8", fontSize: "13px" }}>
-              No recommendations
-            </p>
-          )}
-
-          {recommendations.slice(0, 5).map((recommendation) => {
-            const colors = RECOMMENDATION_COLORS[recommendation.action];
-
-            return (
-              <div
-                key={recommendation.id}
-                style={{
-                  background: colors.background,
-                  border: `1px solid ${colors.border}`,
-                  color: colors.color,
-                  padding: "10px",
-                  borderRadius: "8px",
-                  marginBottom: "8px",
-                  fontSize: "12px",
-                  fontWeight: 700,
-                }}
-              >
-                <div>{recommendation.action.split("_").join(" ")}</div>
-                <div style={{ color: "#94a3b8", marginTop: "4px" }}>
-                  {recommendation.reason}
-                </div>
-                <div style={{ color: "#94a3b8", marginTop: "4px" }}>
-                  Drone ID: {recommendation.droneId}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        <div
-          style={{
-            marginTop: "24px",
-            background: "rgba(255,255,255,0.03)",
-            border: "1px solid rgba(110, 231, 255, 0.1)",
-            borderRadius: "12px",
-            padding: "14px",
-          }}
-        >
-          <h3 style={{ marginTop: 0, fontSize: "15px" }}>Event Log</h3>
-
-          {eventLog.length === 0 && (
-            <p style={{ color: "#94a3b8", fontSize: "13px" }}>
-              No events logged
-            </p>
-          )}
-
-          {eventLog.map((event) => (
-            <div
-              key={event.id}
-              style={{
-                background: "rgba(255,255,255,0.03)",
-                border: "1px solid rgba(110, 231, 255, 0.08)",
-                borderRadius: "8px",
-                padding: "10px",
-                marginBottom: "8px",
-                fontSize: "12px",
-              }}
-            >
-              <div style={{ color: "#6ee7ff", fontWeight: 700 }}>
-                {new Date(event.timestamp).toLocaleTimeString()} ·{" "}
-                {event.action.split("_").join(" ")}
-              </div>
-              <div style={{ color: "white", marginTop: "4px", fontWeight: 700 }}>
-                {event.droneName}
-              </div>
-              <div style={{ color: "#94a3b8", marginTop: "4px" }}>
-                {event.reason}
+            <div className="rounded-2xl border border-white/10 bg-slate-950/70 p-4 text-sm text-slate-300">
+              <div className="font-semibold text-white">{snapshot.missionName}</div>
+              <div>{snapshot.commandPost}</div>
+              <div>{snapshot.operatingArea}</div>
+              <div className="mt-2 text-xs text-cyan-200">
+                {isLoading ? "Syncing fleet API…" : `Updated ${formatTime(snapshot.generatedAt)}`}
               </div>
             </div>
-          ))}
-        </div>
-      </aside>
+          </div>
+        </header>
 
-      <section style={{ flex: 1, padding: "24px", boxSizing: "border-box" }}>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: "16px",
-          }}
-        >
-          <div>
-            <h2 style={{ margin: 0, fontSize: "30px" }}>Live Tracking</h2>
-            <p style={{ color: "#94a3b8", marginTop: "6px" }}>
-              Powered by Vektro Intelligence.
-            </p>
+        <section className="grid gap-4 md:grid-cols-4">
+          {[
+            ["Fleet online", snapshot.fleet.length, "active drones"],
+            ["Priority alerts", activeAlerts, "high / critical"],
+            ["Avg battery", `${averageBattery}%`, "fleet reserve"],
+            ["Avg signal", `${averageSignal}%`, "telemetry health"],
+          ].map(([label, value, helper]) => (
+            <div key={label} className="rounded-3xl border border-white/10 bg-white/[0.045] p-5 backdrop-blur">
+              <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">{label}</p>
+              <div className="mt-3 text-3xl font-black text-white">{value}</div>
+              <p className="mt-1 text-sm text-slate-400">{helper}</p>
+            </div>
+          ))}
+        </section>
+
+        <section className="grid gap-6 xl:grid-cols-[1.45fr_0.9fr]">
+          <div className="rounded-[2rem] border border-cyan-300/15 bg-slate-950/75 p-5 shadow-2xl shadow-slate-950/50">
+            <div className="mb-4 flex items-center justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-black text-white">Tactical airspace map</h2>
+                <p className="text-sm text-slate-400">CSS mission map fallback keeps the demo working without paid map APIs.</p>
+              </div>
+              <span className="rounded-full bg-emerald-300/15 px-3 py-1 text-xs font-bold text-emerald-200">REVIEW MODE</span>
+            </div>
+
+            <div className="relative h-[520px] overflow-hidden rounded-[1.5rem] border border-cyan-300/10 bg-[#07111f]">
+              <div className="absolute inset-0 bg-[linear-gradient(rgba(103,232,249,0.07)_1px,transparent_1px),linear-gradient(90deg,rgba(103,232,249,0.07)_1px,transparent_1px)] bg-[size:48px_48px]" />
+              <div className="absolute left-[14%] top-[18%] h-[66%] w-[72%] rounded-full border border-cyan-200/10" />
+              <div className="absolute left-[23%] top-[28%] h-[46%] w-[54%] rounded-full border border-cyan-200/10" />
+              <div className="absolute bottom-8 left-8 rounded-2xl border border-white/10 bg-black/35 px-4 py-3 text-xs text-slate-300 backdrop-blur">
+                <div className="font-bold text-white">Lower Manhattan perimeter</div>
+                <div>Simulated GPS layer • No external map token required</div>
+              </div>
+
+              {snapshot.fleet.map((drone) => {
+                const position = getMapPosition(drone);
+                const isSelected = selectedDrone?.id === drone.id;
+                const hasAlert = snapshot.alerts.some((alert) => alert.droneId === drone.id);
+
+                return (
+                  <button
+                    key={drone.id}
+                    onClick={() => setSelectedDroneId(drone.id)}
+                    className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-full border p-1 transition hover:scale-110 ${
+                      isSelected ? "border-cyan-200 bg-cyan-300/30 shadow-[0_0_35px_rgba(103,232,249,0.55)]" : "border-white/20 bg-slate-900/80"
+                    }`}
+                    style={position}
+                    aria-label={`Select ${drone.name}`}
+                  >
+                    <span className={`block h-5 w-5 rounded-full ${hasAlert ? "bg-red-400" : "bg-cyan-300"}`} />
+                    <span className="absolute left-7 top-1/2 -translate-y-1/2 whitespace-nowrap rounded-lg border border-white/10 bg-black/60 px-2 py-1 text-xs font-bold text-white">
+                      {drone.name}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "flex-start",
-              gap: "10px",
-              minWidth: "260px",
-              background: "rgba(15, 23, 32, 0.92)",
-              border: "1px solid rgba(110, 231, 255, 0.18)",
-              borderRadius: "12px",
-              padding: "12px",
-            }}
-          >
-            <div
-              style={{
-                color: "#6ee7ff",
-                fontSize: "11px",
-                fontWeight: 700,
-                letterSpacing: "0.12em",
-                textTransform: "uppercase",
-              }}
-            >
-              Follow Mode
-            </div>
-
-            <div
-              style={{
-                color: selectedDroneName ? "white" : "#94a3b8",
-                fontSize: "12px",
-                fontWeight: 700,
-                lineHeight: 1.4,
-              }}
-            >
-              {selectedDroneName ?? "Click a drone to follow"}
-            </div>
-
-            {followedDroneName && (
-              <div
-                style={{
-                  color: "#6ee7ff",
-                  fontSize: "12px",
-                  fontWeight: 700,
-                  lineHeight: 1.4,
-                }}
-              >
-                Following: {followedDroneName}
-              </div>
-            )}
-
-            <div
-              style={{
-                display: "flex",
-                gap: "10px",
-                flexWrap: "wrap",
-              }}
-            >
-              <button
-                onClick={() => {
-                  if (selectedDrone) {
-                    flyToDrone(selectedDrone);
-                  }
-                }}
-                disabled={!selectedDrone}
-                style={{
-                  background: selectedDrone
-                    ? "#6ee7ff"
-                    : "rgba(255,255,255,0.08)",
-                  color: selectedDrone ? "#041016" : "#64748b",
-                  border: "1px solid rgba(110, 231, 255, 0.25)",
-                  borderRadius: "10px",
-                  padding: "10px 14px",
-                  fontWeight: 700,
-                  cursor: selectedDrone ? "pointer" : "not-allowed",
-                }}
-              >
-                Center Drone
-              </button>
-
-              {followDroneId && (
-                <button
-                  onClick={() => setFollowDroneId(null)}
-                  style={{
-                    background: "rgba(255,255,255,0.08)",
-                    color: "white",
-                    border: "1px solid rgba(110, 231, 255, 0.25)",
-                    borderRadius: "10px",
-                    padding: "10px 14px",
-                    fontWeight: 700,
-                    cursor: "pointer",
-                  }}
-                >
-                  Stop Following
-                </button>
+          <aside className="flex flex-col gap-4">
+            <div className="rounded-[2rem] border border-white/10 bg-white/[0.045] p-5">
+              <p className="text-xs font-bold uppercase tracking-[0.22em] text-cyan-200">Selected asset</p>
+              {selectedDrone && (
+                <div className="mt-4 space-y-4">
+                  <div>
+                    <h2 className="text-3xl font-black text-white">{selectedDrone.name}</h2>
+                    <p className="text-sm text-slate-400">{selectedDrone.model}</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <Metric label="Status" value={selectedDrone.status} />
+                    <Metric label="Zone" value={selectedDrone.zone} />
+                    <Metric label="Altitude" value={`${selectedDrone.altitudeFt} ft`} />
+                    <Metric label="Speed" value={`${selectedDrone.speedMph} mph`} />
+                    <Metric label="Payload" value={selectedDrone.payload} />
+                    <Metric label="Last ping" value={formatTime(selectedDrone.lastPing)} />
+                  </div>
+                  <HealthBar label="Battery" value={selectedDrone.batteryPct} />
+                  <HealthBar label="Signal" value={selectedDrone.signalPct} />
+                </div>
               )}
             </div>
-          </div>
-        </div>
 
-        {selectedDrone && (
-          <div
-            style={{
-              background: "rgba(15, 23, 32, 0.95)",
-              border: "1px solid rgba(110, 231, 255, 0.12)",
-              borderRadius: "14px",
-              padding: "16px",
-              marginBottom: "16px",
-              maxWidth: "440px",
-            }}
-          >
-            <h3 style={{ marginTop: 0 }}>
-              {selectedDrone.drone_name ?? "Drone"}
-            </h3>
-
-            <p>Status: {selectedDrone.drone_status ?? "unknown"}</p>
-
-            <p
-              style={{
-                color:
-                  (selectedDrone.battery_pct ?? 100) < 30
-                    ? "#ff4d4d"
-                    : "white",
-                fontWeight:
-                  (selectedDrone.battery_pct ?? 100) < 30 ? 700 : 400,
-              }}
-            >
-              Battery:{" "}
-              {selectedDrone.battery_pct === null ||
-              selectedDrone.battery_pct === undefined
-                ? "N/A"
-                : `${selectedDrone.battery_pct}%`}
-            </p>
-
-            {(selectedDrone.battery_pct ?? 100) < 30 && (
-              <p style={{ color: "#ff4d4d", fontWeight: 700 }}>
-                ⚠️ LOW BATTERY
-              </p>
-            )}
-
-            <p>Lat: {Number(selectedDrone.latitude).toFixed(4)}</p>
-            <p>Lng: {Number(selectedDrone.longitude).toFixed(4)}</p>
-
-            <p>
-              Last Ping:{" "}
-              {selectedDrone.last_ping
-                ? new Date(selectedDrone.last_ping).toLocaleTimeString()
-                : "N/A"}
-            </p>
-          </div>
-        )}
-
-        <div
-          ref={mapContainerRef}
-          style={{
-            position: "relative",
-            width: "100%",
-            height: "680px",
-            borderRadius: "18px",
-            overflow: "hidden",
-            border: "1px solid rgba(110, 231, 255, 0.12)",
-            boxShadow: "0 20px 60px rgba(0,0,0,0.6)",
-          }}
-        >
-          {!MAPBOX_TOKEN && (
-            <div
-              style={{
-                position: "absolute",
-                inset: 0,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                background: "rgba(15, 23, 32, 0.95)",
-                color: "#94a3b8",
-                fontSize: "14px",
-                fontWeight: 700,
-                textAlign: "center",
-                padding: "24px",
-              }}
-            >
-              Missing NEXT_PUBLIC_MAPBOX_TOKEN. Add it to .env.local and
-              restart the development server.
+            <div className="rounded-[2rem] border border-white/10 bg-white/[0.045] p-5">
+              <h2 className="text-lg font-black text-white">Automation action log</h2>
+              <div className="mt-4 space-y-3">
+                {actionLogs.map((log) => (
+                  <div key={log.id} className="rounded-2xl border border-white/10 bg-slate-950/70 p-3 text-sm text-slate-300">
+                    <div className="text-xs font-bold text-cyan-200">{formatTime(log.createdAt)}</div>
+                    <div>{log.message}</div>
+                  </div>
+                ))}
+              </div>
             </div>
-          )}
-        </div>
+          </aside>
+        </section>
+
+        <section className="grid gap-6 xl:grid-cols-[1fr_1fr]">
+          <Panel title="AI recommendations" helper="All actions are staged for review only; no live commands are sent.">
+            <div className="space-y-3">
+              {snapshot.recommendations.map((recommendation) => {
+                const drone = snapshot.fleet.find((unit) => unit.id === recommendation.droneId);
+
+                return (
+                  <article key={recommendation.id} className="rounded-2xl border border-white/10 bg-slate-950/65 p-4">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <span className={`rounded-full px-2.5 py-1 text-xs font-black uppercase ${priorityStyles[recommendation.priority]}`}>
+                          {recommendation.priority}
+                        </span>
+                        <h3 className="mt-3 text-lg font-black text-white">{recommendation.title}</h3>
+                        <p className="mt-2 text-sm leading-6 text-slate-300">{recommendation.rationale}</p>
+                        <p className="mt-2 text-xs font-bold text-slate-500">Asset: {drone?.name ?? recommendation.droneId}</p>
+                      </div>
+                      <button
+                        onClick={() => stageAction(recommendation)}
+                        disabled={pendingActionId === recommendation.id}
+                        className="rounded-xl border border-cyan-200/20 bg-cyan-300 px-4 py-2 text-sm font-black text-slate-950 transition hover:bg-cyan-200 disabled:cursor-wait disabled:opacity-60"
+                      >
+                        {pendingActionId === recommendation.id ? "Staging…" : "Stage action"}
+                      </button>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </Panel>
+
+          <Panel title="Alert review queue" helper="Severity, confidence, and field details for the operator review loop.">
+            <div className="space-y-3">
+              {snapshot.alerts.map((alert) => {
+                const drone = snapshot.fleet.find((unit) => unit.id === alert.droneId);
+
+                return (
+                  <article key={alert.id} className={`rounded-2xl border p-4 ${severityStyles[alert.severity]}`}>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-xs font-black uppercase tracking-[0.18em]">{alert.severity}</span>
+                      <span className="rounded-full bg-black/25 px-2 py-1 text-xs font-bold">{alert.confidence}% confidence</span>
+                    </div>
+                    <h3 className="mt-3 text-lg font-black text-white">{alert.title}</h3>
+                    <p className="mt-2 text-sm leading-6 text-slate-200">{alert.detail}</p>
+                    <div className="mt-3 text-xs font-bold text-slate-300">
+                      {drone?.name ?? alert.droneId} • {formatTime(alert.createdAt)}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </Panel>
+        </section>
+
+        <Panel title="Fleet telemetry" helper="Mock data is structured to match the fleet API and future Supabase ingestion.">
+          <div className="overflow-hidden rounded-2xl border border-white/10">
+            <table className="w-full min-w-[760px] border-collapse text-left text-sm">
+              <thead className="bg-white/[0.06] text-xs uppercase tracking-[0.18em] text-slate-400">
+                <tr>
+                  <th className="px-4 py-3">Drone</th>
+                  <th className="px-4 py-3">Mission</th>
+                  <th className="px-4 py-3">Operator</th>
+                  <th className="px-4 py-3">Battery</th>
+                  <th className="px-4 py-3">Signal</th>
+                  <th className="px-4 py-3">Coordinates</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/10">
+                {snapshot.fleet.map((drone) => (
+                  <tr key={drone.id} className="bg-slate-950/45 text-slate-200">
+                    <td className="px-4 py-4">
+                      <button onClick={() => setSelectedDroneId(drone.id)} className="font-black text-white hover:text-cyan-200">
+                        {drone.name}
+                      </button>
+                      <div className="text-xs text-slate-500">{drone.status}</div>
+                    </td>
+                    <td className="px-4 py-4">{drone.mission}</td>
+                    <td className="px-4 py-4">{drone.operator}</td>
+                    <td className="px-4 py-4">{drone.batteryPct}%</td>
+                    <td className="px-4 py-4">{drone.signalPct}%</td>
+                    <td className="px-4 py-4 font-mono text-xs text-slate-400">
+                      {drone.latitude.toFixed(4)}, {drone.longitude.toFixed(4)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Panel>
       </section>
-      <style jsx global>{`
-        .skytrace-marker-responding svg {
-          animation: skytrace-marker-responding-pulse 1.35s ease-in-out infinite;
-          transform-origin: center bottom;
-          will-change: transform, filter;
-        }
-
-        .skytrace-marker-return-home svg {
-          animation: skytrace-return-home-pulse 1.15s ease-in-out infinite;
-          filter: drop-shadow(0 0 8px rgba(255, 77, 77, 0.75));
-          transform-origin: center bottom;
-          will-change: transform, filter;
-        }
-
-        @keyframes skytrace-marker-responding-pulse {
-          0%,
-          100% {
-            transform: scale(1);
-            filter: drop-shadow(0 0 5px rgba(110, 231, 255, 0.35));
-          }
-          50% {
-            transform: scale(1.1);
-            filter: drop-shadow(0 0 11px rgba(110, 231, 255, 0.6));
-          }
-        }
-
-        @keyframes skytrace-return-home-pulse {
-          0%,
-          100% {
-            transform: scale(1);
-            filter: drop-shadow(0 0 6px rgba(255, 77, 77, 0.55));
-          }
-          50% {
-            transform: scale(1.18);
-            filter: drop-shadow(0 0 14px rgba(255, 77, 77, 0.95));
-          }
-        }
-      `}</style>
     </main>
+  );
+}
+
+function Metric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-slate-950/65 p-3">
+      <div className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">{label}</div>
+      <div className="mt-1 font-bold capitalize text-white">{value}</div>
+    </div>
+  );
+}
+
+function HealthBar({ label, value }: { label: string; value: number }) {
+  return (
+    <div>
+      <div className="mb-2 flex items-center justify-between text-sm">
+        <span className="font-bold text-slate-300">{label}</span>
+        <span className="font-black text-white">{value}%</span>
+      </div>
+      <div className="h-2 overflow-hidden rounded-full bg-white/10">
+        <div className={`h-full rounded-full ${getBatteryColor(value)}`} style={{ width: `${value}%` }} />
+      </div>
+    </div>
+  );
+}
+
+function Panel({ title, helper, children }: { title: string; helper: string; children: React.ReactNode }) {
+  return (
+    <section className="rounded-[2rem] border border-white/10 bg-white/[0.045] p-5 backdrop-blur">
+      <div className="mb-4">
+        <h2 className="text-xl font-black text-white">{title}</h2>
+        <p className="mt-1 text-sm text-slate-400">{helper}</p>
+      </div>
+      {children}
+    </section>
   );
 }

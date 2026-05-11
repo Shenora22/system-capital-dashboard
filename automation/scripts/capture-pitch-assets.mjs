@@ -206,14 +206,15 @@ class Canvas {
 function drawAsset(c, mode) {
   c.gradient();
   c.text("SKYTRACE MISSION CONTROL", 56, 44, 4, [125, 236, 255, 255]);
-  c.text("AI POWERED DRONE OPERATIONS", 56, 96, 7, [255, 255, 255, 255]);
-  c.text("MOCK FLEET TELEMETRY  ALERTS  RECOMMENDATIONS  REVIEW ONLY AUTOMATION", 60, 170, 3, [203, 213, 225, 255]);
+  c.text("AI MISSION CONTROL FOR", 56, 96, 7, [255, 255, 255, 255]);
+  c.text("AUTONOMOUS DRONE OPERATIONS", 56, 156, 7, [255, 255, 255, 255]);
+  c.text("RUN FLEETS  DETECT ISSUES  AUTOMATE DECISIONS IN REAL TIME", 60, 232, 3, [203, 213, 225, 255]);
 
   if (mode === "hero") {
-    metrics(c, 60, 230);
-    drawMap(c, 60, 370, 930, 540);
-    drawSelected(c, 1020, 370, 510, 250);
-    drawAutomation(c, 1020, 650, 510, 260);
+    metrics(c, 60, 285);
+    drawMap(c, 60, 405, 930, 505);
+    drawSelected(c, 1020, 405, 510, 235);
+    drawAutomation(c, 1020, 670, 510, 240);
   }
   if (mode === "map") drawMap(c, 70, 180, 1260, 650, true);
   if (mode === "alerts") drawAlerts(c, 70, 190, 1060, 620);
@@ -228,7 +229,7 @@ function panel(c, x, y, w, h, title) {
 }
 
 function metrics(c, x, y) {
-  [["FLEET ONLINE", "4"], ["PRIORITY ALERTS", "2"], ["AVG BATTERY", "58%"], ["AVG SIGNAL", "87%"]].forEach((m, i) => {
+  [["FLEET", "4"], ["ALERTS", "2"], ["BATTERY", "58%"], ["SIGNAL", "87%"]].forEach((m, i) => {
     const xx = x + i * 375;
     panel(c, xx, y, 330, 100, m[0]);
     c.text(m[1], xx + 28, y + 58, 5, [255, 255, 255, 255]);
@@ -241,10 +242,12 @@ function drawMap(c, x, y, w, h, large = false) {
   for (let gy = y + 90; gy < y + h - 40; gy += 60) c.line(x + 30, gy, x + w - 30, gy, [103, 232, 249, 35]);
   c.circle(x + w / 2, y + h / 2 + 40, Math.floor(Math.min(w, h) * 0.32), [103, 232, 249, 40], false);
   c.circle(x + w / 2, y + h / 2 + 40, Math.floor(Math.min(w, h) * 0.21), [103, 232, 249, 40], false);
-  const drones = [[.30,.38,"DRONE 01", false], [.55,.45,"DRONE 02", true], [.67,.62,"DRONE 03", false], [.42,.70,"DRONE 04", true]];
-  for (const [px, py, label, alert] of drones) {
+  const drones = [[.30,.38,"SCOUT 01", false, false], [.55,.45,"SENTINEL 04", true, true], [.67,.62,"RAVEN 12", true, false], [.42,.70,"HARBOR 07", false, false]];
+  for (const [px, py, label, alert, active] of drones) {
     const dx = x + w * px, dy = y + h * py;
-    c.circle(dx, dy, large ? 17 : 12, alert ? [248, 113, 113, 255] : [103, 232, 249, 255]);
+    c.line(dx - 80, dy + 42, dx, dy, alert ? [248, 113, 113, 90] : [103, 232, 249, 80]);
+    if (active) c.circle(dx, dy, large ? 38 : 28, [103, 232, 249, 42], false);
+    c.circle(dx, dy, active ? (large ? 22 : 16) : (large ? 17 : 12), alert ? [248, 113, 113, 255] : [103, 232, 249, 255]);
     c.text(label, dx + 26, dy - 10, large ? 4 : 3, [255, 255, 255, 255]);
   }
   c.rect(x + 35, y + h - 95, large ? 450 : 360, 55, [0, 0, 0, 110]);
@@ -262,15 +265,15 @@ function drawSelected(c, x, y, w, h) {
 }
 
 function drawAutomation(c, x, y, w, h) {
-  panel(c, x, y, w, h, "AUTOMATION ACTION LOG");
-  ["FLEET API REFRESHED 4 DRONES AND 3 ALERTS", "STAGED REROUTE FOR DRONE 02", "MISSION SNAPSHOT LOADED FROM MOCK FLEET DATA"].forEach((t, i) => {
+  panel(c, x, y, w, h, "ACTION LOG");
+  ["FLEET REFRESH  4 DRONES  3 ALERTS", "RETURN HOME STAGED  REVIEW ONLY", "SNAPSHOT LOADED FROM MOCK DATA"].forEach((t, i) => {
     c.rect(x + 28, y + 84 + i * 68, w - 56, 48, [2, 6, 23, 180]);
     c.text(t, x + 48, y + 100 + i * 68, 3, [203, 213, 225, 255]);
   });
 }
 
 function drawAlerts(c, x, y, w, h) {
-  panel(c, x, y, w, h, "ALERT REVIEW QUEUE");
+  panel(c, x, y, w, h, "ALERTS");
   [["CRITICAL", "GEOFENCE CONFLICT DETECTED", [239, 68, 68, 70]], ["HIGH", "BATTERY RESERVE BELOW ROUTE PLAN", [251, 146, 60, 70]], ["MEDIUM", "SIGNAL DEGRADATION WATCH", [250, 204, 21, 55]]].forEach((a, i) => {
     c.rect(x + 35, y + 95 + i * 155, w - 70, 115, a[2]);
     c.stroke(x + 35, y + 95 + i * 155, w - 70, 115, [255, 255, 255, 55], 2);

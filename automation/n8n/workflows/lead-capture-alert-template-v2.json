@@ -197,6 +197,7 @@
     {
       "parameters": {
         "respondWith": "json",
+        "responseBody": "{\n  \"success\": false,\n  \"message\": \"Lead capture payload rejected\"\n}",
         "responseBody": "{\"success\": false, \"message\": \"Missing required email field\"}",
         "options": {
           "responseCode": 400

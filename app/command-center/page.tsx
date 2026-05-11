@@ -1,4 +1,4 @@
-import SystemCapitalDashboard from "@/components/SystemCapitalDashboard";
+import SystemCapitalDashboard from "@/dashboard/components/SystemCapitalDashboard";
 
 export default function CommandCenterPage() {
   return <SystemCapitalDashboard />;

@@ -5,6 +5,9 @@ The logging subsystem owns UI and future utilities for viewing operational activ
 ## Contents
 
 - `components/AgentLogViewer.tsx` — modal log viewer used by the agents control panel.
+- `lib/system-events.ts` — shared System Event types, demo-safe fixtures, and dashboard metrics helpers.
+- `fixtures/system-events.json` — local JSON examples for the future universal logger payload.
+- `system-event-logger.md` — runbook for the planned `SC CORE - System Event Logger` n8n workflow.
 
 ## Boundaries
 
@@ -12,4 +15,4 @@ Logging components should render normalized log entries. Collection, retention, 
 
 ## TODO
 
-- TODO(logging): Add a shared log entry schema and route API-backed logs through this subsystem.
+- TODO(logging): Route reviewed System Events through the universal logger after Notion schema approval.

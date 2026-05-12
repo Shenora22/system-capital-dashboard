@@ -13,7 +13,9 @@ import {
   prompts,
   reports,
   statusTracks,
+  systemEventBlueprint,
   systemHealthChecks,
+  workflowGovernanceRules,
   workflows,
   type AgentHealth,
   type LogLevel,
@@ -213,10 +215,34 @@ export default function SystemCapitalOSPage() {
           </div>
         </section>
 
+        <section className="os-panel os-table-panel" id="workflow-governance">
+          <SectionHeader
+            kicker="07 / Workflow Governance"
+            title="Production-safe workflow rules"
+            body="Governance checkpoints for workflow changes so the registry can mature without breaking active n8n paths or creating duplicate sources of truth."
+          />
+          <div className="os-table-wrap">
+            <table>
+              <thead>
+                <tr><th>Rule</th><th>Owner</th><th>Checkpoint</th></tr>
+              </thead>
+              <tbody>
+                {workflowGovernanceRules.map((rule) => (
+                  <tr key={rule.rule}>
+                    <td><strong>{rule.rule}</strong></td>
+                    <td>{rule.owner}</td>
+                    <td>{rule.checkpoint}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
         <section className="os-grid os-founder-grid" id="founder">
           <div className="os-panel os-founder-command">
             <SectionHeader
-              kicker="07 / Founder Dashboard"
+              kicker="08 / Founder Dashboard"
               title="Founder command briefing"
               body="A decision-focused operating view that highlights leverage, blockers, and the next approval that matters."
             />
@@ -243,7 +269,7 @@ export default function SystemCapitalOSPage() {
         <section className="os-grid os-two-column" id="status">
           <div className="os-panel">
             <SectionHeader
-              kicker="08 / Agent Status Tracker"
+              kicker="09 / Agent Status Tracker"
               title="Runtime state monitor"
               body="Track active work, task progress, and degraded connectors before they create operational drag."
             />
@@ -260,7 +286,7 @@ export default function SystemCapitalOSPage() {
 
           <div className="os-panel" id="logs">
             <SectionHeader
-              kicker="09 / Development Log Viewer"
+              kicker="10 / Development Log Viewer"
               title="Build + automation log"
               body="A transparent event ledger for workflow changes, prompt releases, and runtime readiness."
             />
@@ -277,9 +303,32 @@ export default function SystemCapitalOSPage() {
           </div>
         </section>
 
+        <section className="os-panel os-table-panel" id="system-events">
+          <SectionHeader
+            kicker="11 / System Events Preparation"
+            title="Normalized event ledger blueprint"
+            body="A read-only schema plan for future event capture. The dashboard documents the fields now; live writes should wait for storage and ownership review."
+          />
+          <div className="os-table-wrap">
+            <table>
+              <thead>
+                <tr><th>Field</th><th>Purpose</th></tr>
+              </thead>
+              <tbody>
+                {systemEventBlueprint.map((eventField) => (
+                  <tr key={eventField.field}>
+                    <td><strong>{eventField.field}</strong></td>
+                    <td>{eventField.purpose}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
         <section className="os-panel os-reports" id="reports">
           <SectionHeader
-            kicker="10 / System Reports page"
+            kicker="12 / System Reports page"
             title="Report center"
             body="Founder-grade reports translate agent activity and workflow health into operational decisions."
           />
@@ -304,7 +353,7 @@ export default function SystemCapitalOSPage() {
         <section className="os-grid os-two-column" id="payments">
           <div className="os-panel">
             <SectionHeader
-              kicker="11 / Stripe & Payments"
+              kicker="13 / Stripe & Payments"
               title="Payment tracking preparation"
               body="Read-only payment readiness for Starter, Pro, and Custom Build paths. This dashboard documents routing and review needs; it does not modify Stripe."
             />
@@ -321,7 +370,7 @@ export default function SystemCapitalOSPage() {
 
           <div className="os-panel" id="health">
             <SectionHeader
-              kicker="12 / System Health"
+              kicker="14 / System Health"
               title="Automation-safe health checks"
               body="The live-data path should connect by reading known sources first, preserving n8n, Notion, and payment systems until ownership is reviewed."
             />
@@ -338,7 +387,7 @@ export default function SystemCapitalOSPage() {
 
         <section className="os-panel os-reports" id="build-rules">
           <SectionHeader
-            kicker="13 / Build Rules"
+            kicker="15 / Build Rules"
             title="Stabilize before expanding"
             body="Codex-side operating rules for future builders so improvements stay organized, documented, modular, and safe."
           />

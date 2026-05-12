@@ -75,9 +75,9 @@ Static marketing assets were moved to `public/marketing/**`. Legacy asset URLs a
 | `public/brand-kit/assets/*.svg` | `public/marketing/assets/brand-kit/*.svg` |
 | `public/carousels/system-capital/*.svg` | `public/marketing/carousels/system-capital/*.svg` |
 
-## System OS Backbone
+## System OS Stabilization & Operating Backbone
 
-The `/system-capital-os` route is the current Codex-side operating backbone for CRM, lead intake, workflow registry, AI agents registry, system event logging, payments, build rules, reports, and health. It uses local fixture arrays now so future live connectors can replace the data layer without redesigning the route. Details are tracked in [`OPERATING_BACKBONE.md`](./OPERATING_BACKBONE.md).
+The `/system-capital-os` route is the current Codex-side stabilization and operating backbone for CRM, lead intake, workflow registry, workflow governance, AI agents registry, system event logging, payments, build rules, reporting, and operational telemetry.
 
 ## Lead Capture Workflow Guarantees
 

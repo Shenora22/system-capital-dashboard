@@ -11,6 +11,12 @@ import {
   isProblemStatus,
 } from "@/logging/lib/agent-logs";
 import { agentRoster, signalFeed, workflowStatuses } from "@/memory/data/shenora";
+import {
+  deriveLeadIntakeEventMetrics,
+  formatSystemEventTime,
+  leadIntakeSystemEvents,
+  sortSystemEventsByNewest,
+} from "@/lib/system-events";
 
 type RoadmapTrack = {
   title: string;
@@ -106,6 +112,13 @@ const toneForStatus = (status: string, result: string) => {
   return "cyan";
 };
 
+const toneForSystemEvent = (status: string, priority: string) => {
+  if (status === "Failed" || priority === "Critical") return "rose";
+  if (priority === "High") return "amber";
+  if (status === "Warning" || status === "Pending") return "violet";
+  return "cyan";
+};
+
 export default function SystemCapitalDashboard() {
   const [logs, setLogs] = useState<AgentLog[]>([]);
   const [source, setSource] = useState<LogsResponse["source"]>("not-configured");
@@ -154,13 +167,18 @@ export default function SystemCapitalDashboard() {
   const displayLogs = logs.length > 0 ? logs : fallbackAgentLogs;
   const metrics = useMemo(() => deriveLogMetrics(displayLogs), [displayLogs]);
   const newestSignal = signalFeed[0];
+  const systemEvents = useMemo(() => sortSystemEventsByNewest(leadIntakeSystemEvents), []);
+  const leadIntakeMetrics = useMemo(() => deriveLeadIntakeEventMetrics(systemEvents), [systemEvents]);
+  const failedSystemEvents = leadIntakeMetrics.failedEvents;
+  const lastLeadCaptured = leadIntakeMetrics.lastLeadCaptured;
   const blockedWorkflows = workflowStatuses.filter((workflow) => workflow.status === "blocked").length;
   const runningWorkflows = workflowStatuses.filter((workflow) => workflow.status === "running" || workflow.status === "scheduled").length;
 
   const commandStats = [
     { label: "Active agents", value: String(Math.max(metrics.activeAgents, agentRoster.filter((agent) => agent.status === "running").length)) },
     { label: "Recent logs", value: String(metrics.totalLogs) },
-    { label: "Needs review", value: String(metrics.attentionItems + blockedWorkflows) },
+    { label: "Needs review", value: String(metrics.attentionItems + blockedWorkflows + failedSystemEvents.length) },
+    { label: "Events today", value: String(leadIntakeMetrics.eventsToday) },
   ];
 
   const moduleCards = moduleDefinitions.map((module) => {
@@ -177,7 +195,7 @@ export default function SystemCapitalDashboard() {
       prompts: `${displayLogs.filter((log) => /prompt|brief|copy|memo/i.test(`${log.action} ${log.result}`)).length} used`,
       brand: "Assets live",
       command: `${metrics.totalLogs} events`,
-      logs: `${metrics.totalLogs} events`,
+      logs: `${leadIntakeMetrics.totalEvents} events`,
     };
 
     return { ...module, metric: metricByKey[module.key] || "Open" };
@@ -253,6 +271,75 @@ export default function SystemCapitalDashboard() {
           ))}
         </div>
 
+
+        <section className="scd-system-events scd-glass" aria-label="Lead Intake System Events">
+          <div className="scd-system-events-header">
+            <div>
+              <p className="scd-kicker">System Events / Lead Intake</p>
+              <h2>Lead Intake is the first observable System Capital heartbeat.</h2>
+              <p>Fixture-backed System Events show the safe contract n8n will emit after validation, CRM write, Telegram alert, and failure branches.</p>
+            </div>
+            <span>SC - Lead Intake CORE</span>
+          </div>
+
+          <div className="scd-event-health-grid" aria-label="Lead Intake Health">
+            <article>
+              <span>Lead Intake Health</span>
+              <strong>{leadIntakeMetrics.health}</strong>
+              <p>{failedSystemEvents.length ? `${failedSystemEvents.length} event needs review` : "No failed lead events in fixtures"}</p>
+            </article>
+            <article>
+              <span>Failed Events</span>
+              <strong>{failedSystemEvents.length}</strong>
+              <p>{leadIntakeMetrics.lastFailure?.errorMessage || "No active failure in the event fixture"}</p>
+            </article>
+            <article>
+              <span>Events Today</span>
+              <strong>{leadIntakeMetrics.eventsToday}</strong>
+              <p>Counted from fixture timestamps for the current UTC day.</p>
+            </article>
+            <article>
+              <span>Last Lead Captured</span>
+              <strong>{lastLeadCaptured?.clientName || "None"}</strong>
+              <p>{lastLeadCaptured ? `${lastLeadCaptured.leadEmail} · ${formatSystemEventTime(lastLeadCaptured.timestamp)}` : "Waiting for first lead event"}</p>
+            </article>
+          </div>
+
+          <div className="scd-event-columns">
+            <div>
+              <div className="scd-section-label">Recent System Events</div>
+              <div className="scd-system-event-list">
+                {systemEvents.slice(0, 6).map((event) => (
+                  <article className="scd-system-event" data-tone={toneForSystemEvent(event.status, event.priority)} key={event.id}>
+                    <div>
+                      <strong>{event.eventType}</strong>
+                      <p>{event.workflowKey} · {event.status} · {formatSystemEventTime(event.timestamp)}</p>
+                      <small>{event.aiSummary || event.notes}</small>
+                    </div>
+                    <span>{event.priority}</span>
+                  </article>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <div className="scd-section-label">Failed Events</div>
+              <div className="scd-system-event-list">
+                {failedSystemEvents.map((event) => (
+                  <article className="scd-system-event" data-tone="rose" key={event.id}>
+                    <div>
+                      <strong>{event.eventType}</strong>
+                      <p>{event.clientName || "Unknown lead"} · {formatSystemEventTime(event.timestamp)}</p>
+                      <small>{event.errorMessage || event.notes}</small>
+                    </div>
+                    <span>{event.priority}</span>
+                  </article>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+
         <section className="scd-roadmap scd-glass" aria-label="Roadmap and Mission Control">
           <div className="scd-roadmap-header">
             <div>
@@ -318,10 +405,21 @@ export default function SystemCapitalDashboard() {
 
       <aside className="scd-activity scd-glass" aria-label="Live activity feed">
         <div className="scd-activity-header">
-          <p className="scd-kicker">Agent Logs</p>
-          <span>{source === "notion" ? "Notion" : "Fallback"}</span>
+          <p className="scd-kicker">Lead + System Activity</p>
+          <span>Events + {source === "notion" ? "Notion" : "Fallback"}</span>
         </div>
         <div className="scd-feed-list">
+          {systemEvents.slice(0, 4).map((event) => (
+            <article className="scd-feed-item" data-tone={toneForSystemEvent(event.status, event.priority)} key={event.id}>
+              <div className="scd-feed-dot" />
+              <div>
+                <strong>{event.eventType}</strong>
+                <p>{event.workflowKey} · {event.status} · {formatSystemEventTime(event.timestamp)}</p>
+                <small>{event.clientName || event.sourceSystem}</small>
+              </div>
+            </article>
+          ))}
+
           {loading && ["Loading 01", "Loading 02", "Loading 03"].map((item) => (
             <article className="scd-feed-item scd-feed-skeleton" key={item}>
               <div className="scd-feed-dot" />
@@ -563,6 +661,131 @@ export default function SystemCapitalDashboard() {
           color: #bbf7d0;
         }
 
+
+        .scd-system-events {
+          border-radius: 34px;
+          padding: 28px;
+        }
+
+        .scd-system-events-header {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 24px;
+        }
+
+        .scd-system-events-header h2 {
+          margin: 8px 0 10px;
+          max-width: 780px;
+          font-size: clamp(1.8rem, 3vw, 3rem);
+          line-height: 1;
+          letter-spacing: -0.06em;
+        }
+
+        .scd-system-events-header p:not(.scd-kicker) {
+          max-width: 760px;
+          color: #cbd5e1;
+          line-height: 1.7;
+        }
+
+        .scd-system-events-header > span,
+        .scd-section-label {
+          border: 1px solid rgba(34, 211, 238, 0.34);
+          border-radius: 999px;
+          color: #bae6fd;
+          padding: 8px 12px;
+          font-size: 0.75rem;
+          white-space: nowrap;
+        }
+
+        .scd-event-health-grid {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 14px;
+          margin-top: 24px;
+        }
+
+        .scd-event-health-grid article {
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          border-radius: 22px;
+          background: rgba(2, 6, 23, 0.44);
+          padding: 18px;
+        }
+
+        .scd-event-health-grid span {
+          color: var(--scd-muted);
+          font-size: 0.76rem;
+        }
+
+        .scd-event-health-grid strong {
+          display: block;
+          margin-top: 6px;
+          font-size: clamp(1.6rem, 2.8vw, 2.6rem);
+          letter-spacing: -0.06em;
+        }
+
+        .scd-event-health-grid p {
+          margin: 8px 0 0;
+          color: #cbd5e1;
+          font-size: 0.85rem;
+          line-height: 1.45;
+        }
+
+        .scd-event-columns {
+          display: grid;
+          grid-template-columns: minmax(0, 1.3fr) minmax(280px, 0.7fr);
+          gap: 18px;
+          margin-top: 24px;
+        }
+
+        .scd-section-label {
+          display: inline-flex;
+          margin-bottom: 12px;
+        }
+
+        .scd-system-event-list {
+          display: grid;
+          gap: 12px;
+        }
+
+        .scd-system-event {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 14px;
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          border-radius: 20px;
+          background: rgba(2, 6, 23, 0.46);
+          padding: 14px;
+        }
+
+        .scd-system-event strong {
+          display: block;
+          color: #fff;
+        }
+
+        .scd-system-event p,
+        .scd-system-event small {
+          color: #cbd5e1;
+          line-height: 1.4;
+        }
+
+        .scd-system-event p {
+          margin: 4px 0;
+        }
+
+        .scd-system-event > span {
+          border: 1px solid rgba(34, 211, 238, 0.28);
+          border-radius: 999px;
+          padding: 5px 9px;
+          color: #bae6fd;
+          font-size: 0.72rem;
+        }
+
+        .scd-system-event[data-tone="rose"] { border-color: rgba(251, 113, 133, 0.34); }
+        .scd-system-event[data-tone="amber"] { border-color: rgba(251, 191, 36, 0.34); }
+        .scd-system-event[data-tone="violet"] { border-color: rgba(167, 139, 250, 0.34); }
+
         .scd-module-grid {
           display: grid;
           grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -712,8 +935,14 @@ export default function SystemCapitalDashboard() {
           }
 
           .scd-hero,
-          .scd-module-grid {
+          .scd-module-grid,
+          .scd-event-health-grid,
+          .scd-event-columns {
             grid-template-columns: 1fr;
+          }
+
+          .scd-system-events-header {
+            display: grid;
           }
         }
       `}</style>

@@ -27,6 +27,16 @@ npm run validate:n8n-workflows
 
 `export:n8n-lead-workflow` copies the canonical workflow JSON to `exports/` for manual n8n import. `validate:n8n-workflows` parses every workflow JSON file, rejects duplicate keys, confirms the lead workflow exists, checks that the webhook path remains `system-capital-lead`, and verifies the success response body.
 
+## Planned universal event logger
+
+The future heartbeat path is documented in [`../../logging/system-event-logger.md`](../../logging/system-event-logger.md):
+
+```text
+Workflow A → SC CORE - System Event Logger → Notion System Events
+```
+
+Keep this read-only until the Notion System Events schema and new logger workflow are manually reviewed. Do not change the production `system-capital-lead` webhook path while preparing the logger.
+
 ## Payment routing
 
 The Tally API route maps package selections before forwarding leads to n8n:

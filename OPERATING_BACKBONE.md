@@ -1,4 +1,5 @@
 # System Capital OS Stabilization Backbone
+# System Capital OS Operating Backbone
 
 This document captures the Codex-side dashboard responsibilities for stabilizing System Capital before expanding it. It documents the surfaces added in code only; Notion, n8n, and Stripe were not modified.
 
@@ -16,6 +17,7 @@ This document captures the Codex-side dashboard responsibilities for stabilizing
 
 - The main dashboard now includes System OS navigation and module cards for the operating backbone, CRM + lead intake, event logs, payments, and system health.
 - The System Capital OS route now organizes operating, governance, and event-blueprint data into typed fixture arrays that can later be replaced by live adapters.
+- The System Capital OS route now organizes operating data into typed fixture arrays that can later be replaced by live adapters.
 - CSS was extended for the new status tones and rule cards while preserving existing layouts and route behavior.
 
 ## What should be reviewed manually
@@ -29,6 +31,7 @@ This document captures the Codex-side dashboard responsibilities for stabilizing
 
 1. Read-only Notion databases for Workflow Registry, AI Agents, Build Rules, Bugs/Issues, and System Events.
 2. A typed system event schema based on the dashboard blueprint that captures lead intake, workflow runs, agent actions, payment events, incidents, and manual reviews.
+2. A typed system event schema that captures lead intake, workflow runs, agent actions, payment events, incidents, and manual reviews.
 3. A read-only Stripe event mirror after payment products and webhook security are approved.
 4. A CRM adapter that maps accepted Tally leads into normalized account/contact/opportunity records without overwriting raw submissions.
 5. Dashboard health checks backed by existing validation scripts and deployment environment status.

@@ -47,7 +47,7 @@ npm run build
 
 ## System Capital OS Backbone
 
-The `/system-capital-os` route now acts as the stabilization-backbone surface for CRM, lead intake, workflow registry, workflow governance, AI agents registry, system event logging, Stripe/payment readiness, build rules, operational dashboards, and future system health. The `/dashboard` module cards link into those sections rather than creating duplicate pages.
+The `/system-capital-os` route now acts as the stabilization and operating backbone surface for CRM, lead intake, workflow registry, workflow governance, AI agents registry, system event logging, Stripe/payment readiness, and business operations.
 
 See [`OPERATING_BACKBONE.md`](./OPERATING_BACKBONE.md) for what was created, what changed, what needs manual review, what should be connected next, and what should not be touched yet.
 

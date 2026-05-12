@@ -35,7 +35,7 @@ This repository is organized around system responsibilities while preserving the
 | Subsystem | Responsibility | Primary Files |
 | --- | --- | --- |
 | `app/` | Stable route/API boundary. Route paths remain unchanged. | `app/**/page.tsx`, `app/api/**/route.ts` |
-| `dashboard/` | Command workspace shell, dashboard landing, and Alora widget UI. | `dashboard/components/*.tsx` |
+| `dashboard/` | Command workspace shell, dashboard landing, System OS entry links, and Alora widget UI. | `dashboard/components/*.tsx` |
 | `agents/` | Agent roster, action controls, and agent-specific interactive UI. | `agents/components/AgentsInteractive.tsx` |
 | `automation/` | n8n exports, lead-capture workflow tooling, operational automation scripts, and backup runbooks. | `automation/n8n/workflows/*.json`, `automation/scripts/*` |
 | `prompts/` | Future prompt packs, evaluation prompts, and agent prompt governance. | `prompts/README.md` |
@@ -74,6 +74,10 @@ Static marketing assets were moved to `public/marketing/**`. Legacy asset URLs a
 | `docs/system-capital-content-engine.md` | `marketing/content/system-capital-content-engine.md` |
 | `public/brand-kit/assets/*.svg` | `public/marketing/assets/brand-kit/*.svg` |
 | `public/carousels/system-capital/*.svg` | `public/marketing/carousels/system-capital/*.svg` |
+
+## System OS Stabilization Backbone
+
+The `/system-capital-os` route is the current Codex-side stabilization backbone for CRM, lead intake, workflow registry, workflow governance, AI agents registry, system event logging, payments, build rules, reports, and health. It uses local fixture arrays now so future live connectors can replace the data layer without redesigning the route. Details are tracked in [`OPERATING_BACKBONE.md`](./OPERATING_BACKBONE.md).
 
 ## Lead Capture Workflow Guarantees
 

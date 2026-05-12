@@ -73,6 +73,7 @@ const roadmapTracks: RoadmapTrack[] = [
 const navItems = [
   { label: "Dashboard", href: "/dashboard" },
   { label: "Command Center", href: "/command-center" },
+  { label: "System OS", href: "/system-capital-os" },
   { label: "Operations", href: "/operations" },
   { label: "Agents", href: "/agents" },
   { label: "Automation", href: "/automation" },
@@ -84,10 +85,16 @@ const navItems = [
 
 const moduleDefinitions = [
   { title: "AI Operations Center", href: "/operations", key: "operations", detail: "Live operating queue, incidents, and owner handoffs." },
+  { title: "System OS Backbone", href: "/system-capital-os#backbone", key: "backbone", detail: "Source map for CRM, workflows, agents, logs, payments, and health." },
+  { title: "CRM + Lead Intake", href: "/system-capital-os#crm", key: "crm", detail: "Lead stages, ownership, handoffs, and automation-safe operating rules." },
   { title: "Agent Registry", href: "/agents", key: "agents", detail: "Inspect autonomous workers, run tests, and view logs." },
   { title: "Workflow Architecture", href: "/automation", key: "automation", detail: "n8n workflow state, runbooks, and SLA controls." },
+  { title: "Workflow Governance", href: "/system-capital-os#workflow-governance", key: "governance", detail: "Production-safe rules for workflow changes, documentation, and read-only-first adapters." },
+  { title: "System Event Logs", href: "/system-capital-os#logs", key: "logs", detail: "Development and runtime event ledger prepared for persistent storage." },
   { title: "Signal Engine", href: "/signals", key: "signals", detail: "Macro, risk, liquidity, and operational signal board." },
   { title: "Deployment Status", href: "/deployment", key: "deployment", detail: "Release surfaces, environment readiness, and blockers." },
+  { title: "Payments", href: "/system-capital-os#payments", key: "payments", detail: "Read-only Stripe/payment routing preparation and manual review notes." },
+  { title: "System Health", href: "/system-capital-os#health", key: "health", detail: "Automation-safe readiness checks for webhooks, logs, backups, and payments." },
   { title: "Prompt Intelligence", href: "/prompts", key: "prompts", detail: "Prompt packs, governance, and evaluation backlog." },
   { title: "Brand Kit", href: "/brand-kit", key: "brand", detail: "Marketing assets, visual system, and reusable components." },
   { title: "Command Center", href: "/command-center", key: "command", detail: "Control page for status, shortcuts, and recent telemetry." },
@@ -160,13 +167,19 @@ export default function SystemCapitalDashboard() {
   const moduleCards = moduleDefinitions.map((module) => {
     const metricByKey: Record<string, string> = {
       operations: metrics.health,
+      backbone: "Mapped",
+      crm: "Staged",
       agents: `${metrics.activeAgents || agentRoster.length} active`,
       automation: `${runningWorkflows} live`,
+      governance: "Rules",
       signals: `${newestSignal.confidence}%`,
       deployment: blockedWorkflows > 0 ? `${blockedWorkflows} blocker` : "Ready",
+      payments: "Manual",
+      health: blockedWorkflows > 0 ? "Review" : "Ready",
       prompts: `${displayLogs.filter((log) => /prompt|brief|copy|memo/i.test(`${log.action} ${log.result}`)).length} used`,
       brand: "Assets live",
       command: `${metrics.totalLogs} events`,
+      logs: `${metrics.totalLogs} events`,
     };
 
     return { ...module, metric: metricByKey[module.key] || "Open" };
@@ -204,7 +217,7 @@ export default function SystemCapitalDashboard() {
             <p className="scd-kicker">System Capital OS · Mission Control</p>
             <h1>Operational command dashboard for agents, automations, signals, and deployment.</h1>
             <p>
-              Recent Agent Logs now drive the module health, activity feed, review count, and operational posture.
+              Recent Agent Logs now drive the module health, activity feed, review count, and operational posture. The System OS backbone links CRM, workflows, agents, logs, payments, and health without changing production automations.
             </p>
           </div>
           <div className="scd-command-card" aria-label="Command stats">

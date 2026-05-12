@@ -43,6 +43,7 @@ html { scroll-behavior: smooth; }
   top: 0;
   z-index: 5;
   height: 100vh;
+  overflow-y: auto;
   border-right: 1px solid var(--os-line);
   background: rgba(5, 7, 11, 0.86);
   backdrop-filter: blur(22px);
@@ -273,7 +274,14 @@ dd {
 .os-metric-card b { color: var(--os-green); margin-right: 10px; }
 
 .os-table-panel,
-.os-reports {
+.os-reports,
+#backbone,
+#crm,
+#payments,
+#health,
+#workflow-governance,
+#system-events,
+#build-rules {
   scroll-margin-top: 24px;
 }
 
@@ -379,6 +387,7 @@ code {
 .os-status-live,
 .os-status-success,
 .os-status-ready,
+.os-status-connected,
 .os-status-high { border-color: rgba(147, 255, 218, 0.34); color: var(--os-green); }
 .os-status-training,
 .os-status-review,
@@ -386,9 +395,12 @@ code {
 .os-status-info { border-color: rgba(79, 142, 247, 0.34); color: var(--os-blue); }
 .os-status-degraded,
 .os-status-warning,
-.os-status-needs-approval { border-color: rgba(255, 209, 102, 0.36); color: var(--os-amber); }
+.os-status-needs-approval,
+.os-status-needs-review,
+.os-status-manual { border-color: rgba(255, 209, 102, 0.36); color: var(--os-amber); }
 .os-status-queued,
 .os-status-draft,
+.os-status-planned,
 .os-status-scheduled { border-color: rgba(139, 92, 246, 0.38); color: #c8b6ff; }
 
 .os-workflow-node {
@@ -485,6 +497,37 @@ code {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.os-rule-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 22px;
+}
+
+.os-rule-card {
+  align-items: start;
+  border: 1px solid var(--os-line);
+  border-radius: 20px;
+  background: rgba(248, 250, 252, 0.045);
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  gap: 14px;
+  padding: 16px;
+}
+
+.os-rule-card span {
+  color: var(--os-blue);
+  font-family: var(--font-geist-mono), monospace;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+}
+
+.os-rule-card p,
+.os-progress-card small {
+  color: var(--os-muted);
+  line-height: 1.6;
+  margin: 0;
+}
+
 .os-report-card {
   display: flex;
   flex-direction: column;
@@ -540,7 +583,8 @@ dd {
   .os-founder-metrics { grid-template-columns: 1fr; }
   .os-prompt-card,
   .os-workflow-node,
-  .os-log-entry { grid-template-columns: 1fr; }
+  .os-log-entry,
+  .os-rule-card { grid-template-columns: 1fr; }
   .os-prompt-card div:last-child { justify-content: flex-start; }
   .os-orbit-card { min-height: 360px; }
   .os-hero h1 { font-size: clamp(3rem, 18vw, 5rem); }

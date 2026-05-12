@@ -1,14 +1,19 @@
 import Image from "next/image";
 import {
   agents,
+  buildRules,
+  crmStages,
   developmentLogs,
   founderMetrics,
   integrationBacklog,
+  operatingBackbone,
   navItems,
   opsMetrics,
+  paymentTracks,
   prompts,
   reports,
   statusTracks,
+  systemHealthChecks,
   workflows,
   type AgentHealth,
   type LogLevel,
@@ -71,7 +76,7 @@ export default function SystemCapitalOSPage() {
             </p>
             <div className="os-hero-actions">
               <a className="os-button os-button-primary" href="#operations">Open Operations Center</a>
-              <a className="os-button os-button-ghost" href="#architecture">View Architecture</a>
+              <a className="os-button os-button-ghost" href="#backbone">View Operating Backbone</a>
             </div>
           </div>
           <div className="os-orbit-card" aria-label="AI workforce overview visualization">
@@ -93,9 +98,60 @@ export default function SystemCapitalOSPage() {
           {opsMetrics.map((metric) => <MetricCard key={metric.label} {...metric} />)}
         </section>
 
+        <section className="os-panel os-table-panel" id="backbone">
+          <SectionHeader
+            kicker="02 / Operating Backbone"
+            title="Clean backbone for CRM, workflows, agents, logs, payments, and health"
+            body="A source-map for what exists now, who owns it, which data source it should read from, and what can be connected next without touching stable production systems."
+          />
+          <div className="os-table-wrap">
+            <table>
+              <thead>
+                <tr><th>Area</th><th>Owner</th><th>Status</th><th>Current source</th><th>Next connector</th></tr>
+              </thead>
+              <tbody>
+                {operatingBackbone.map((item) => (
+                  <tr key={item.area}>
+                    <td><strong>{item.area}</strong></td>
+                    <td>{item.owner}</td>
+                    <td><StatusPill status={item.status} /></td>
+                    <td>{item.source}</td>
+                    <td>{item.nextConnection}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section className="os-panel os-table-panel" id="crm">
+          <SectionHeader
+            kicker="03 / CRM + Lead Intake"
+            title="Lead operating procedure"
+            body="Keep the existing Tally → API route → n8n path intact while making the eventual CRM handoff explicit and auditable."
+          />
+          <div className="os-table-wrap">
+            <table>
+              <thead>
+                <tr><th>Stage</th><th>Trigger</th><th>Owner</th><th>Automation-safe rule</th></tr>
+              </thead>
+              <tbody>
+                {crmStages.map((stage) => (
+                  <tr key={stage.stage}>
+                    <td><strong>{stage.stage}</strong></td>
+                    <td>{stage.trigger}</td>
+                    <td>{stage.owner}</td>
+                    <td>{stage.automationSafeRule}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
         <section className="os-panel os-table-panel" id="agents">
           <SectionHeader
-            kicker="02 / Agent Registry"
+            kicker="04 / Agent Registry"
             title="AI workforce registry"
             body="Every autonomous role has ownership, health, workflow context, and a clean path to runtime integrations."
           />
@@ -123,7 +179,7 @@ export default function SystemCapitalOSPage() {
         <section className="os-grid os-two-column" id="prompts">
           <div className="os-panel">
             <SectionHeader
-              kicker="03 / Prompt Library UI"
+              kicker="05 / Prompt Library UI"
               title="Governed prompt assets"
               body="Reusable prompts are versioned by function, token profile, and operational use case."
             />
@@ -139,7 +195,7 @@ export default function SystemCapitalOSPage() {
 
           <div className="os-panel" id="architecture">
             <SectionHeader
-              kicker="04 / Workflow Architecture"
+              kicker="06 / Workflow Architecture"
               title="Future integration map"
               body="Designed to connect prompt intelligence, workflow automation, event storage, and approval surfaces."
             />
@@ -160,7 +216,7 @@ export default function SystemCapitalOSPage() {
         <section className="os-grid os-founder-grid" id="founder">
           <div className="os-panel os-founder-command">
             <SectionHeader
-              kicker="05 / Founder Dashboard"
+              kicker="07 / Founder Dashboard"
               title="Founder command briefing"
               body="A decision-focused operating view that highlights leverage, blockers, and the next approval that matters."
             />
@@ -187,7 +243,7 @@ export default function SystemCapitalOSPage() {
         <section className="os-grid os-two-column" id="status">
           <div className="os-panel">
             <SectionHeader
-              kicker="06 / Agent Status Tracker"
+              kicker="08 / Agent Status Tracker"
               title="Runtime state monitor"
               body="Track active work, task progress, and degraded connectors before they create operational drag."
             />
@@ -204,7 +260,7 @@ export default function SystemCapitalOSPage() {
 
           <div className="os-panel" id="logs">
             <SectionHeader
-              kicker="07 / Development Log Viewer"
+              kicker="09 / Development Log Viewer"
               title="Build + automation log"
               body="A transparent event ledger for workflow changes, prompt releases, and runtime readiness."
             />
@@ -223,7 +279,7 @@ export default function SystemCapitalOSPage() {
 
         <section className="os-panel os-reports" id="reports">
           <SectionHeader
-            kicker="08 / System Reports page"
+            kicker="10 / System Reports page"
             title="Report center"
             body="Founder-grade reports translate agent activity and workflow health into operational decisions."
           />
@@ -240,6 +296,57 @@ export default function SystemCapitalOSPage() {
                   <div><dt>Status</dt><dd>{report.status}</dd></div>
                 </dl>
                 <button className="os-button os-button-ghost">Preview report</button>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="os-grid os-two-column" id="payments">
+          <div className="os-panel">
+            <SectionHeader
+              kicker="11 / Stripe & Payments"
+              title="Payment tracking preparation"
+              body="Read-only payment readiness for Starter, Pro, and Custom Build paths. This dashboard documents routing and review needs; it does not modify Stripe."
+            />
+            <div className="os-status-list">
+              {paymentTracks.map((track) => (
+                <article className="os-progress-card" key={track.name}>
+                  <div><strong>{track.name}</strong><StatusPill status={track.status} /></div>
+                  <p>{track.source}</p>
+                  <small>{track.review}</small>
+                </article>
+              ))}
+            </div>
+          </div>
+
+          <div className="os-panel" id="health">
+            <SectionHeader
+              kicker="12 / System Health"
+              title="Automation-safe health checks"
+              body="The live-data path should connect by reading known sources first, preserving n8n, Notion, and payment systems until ownership is reviewed."
+            />
+            <div className="os-status-list">
+              {systemHealthChecks.map((check) => (
+                <article className="os-progress-card" key={check.name}>
+                  <div><strong>{check.name}</strong><StatusPill status={check.state} /></div>
+                  <p>{check.detail}</p>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="os-panel os-reports" id="build-rules">
+          <SectionHeader
+            kicker="13 / Build Rules"
+            title="Stabilize before expanding"
+            body="Codex-side operating rules for future builders so improvements stay organized, documented, modular, and safe."
+          />
+          <div className="os-rule-list">
+            {buildRules.map((rule, index) => (
+              <article className="os-rule-card" key={rule}>
+                <span>{String(index + 1).padStart(2, "0")}</span>
+                <p>{rule}</p>
               </article>
             ))}
           </div>

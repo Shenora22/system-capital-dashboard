@@ -1,9 +1,12 @@
 export type AgentHealth = "Online" | "Training" | "Degraded" | "Queued";
 export type WorkflowStatus = "Live" | "Draft" | "Review";
 export type LogLevel = "Info" | "Success" | "Warning";
+export type OperatingStatus = "Ready" | "Needs Review" | "Manual" | "Planned" | "Connected";
 
 export const navItems = [
   { label: "Operations Center", href: "#operations" },
+  { label: "Operating Backbone", href: "#backbone" },
+  { label: "CRM + Lead Intake", href: "#crm" },
   { label: "Agent Registry", href: "#agents" },
   { label: "Prompt Library", href: "#prompts" },
   { label: "Workflow Architecture", href: "#architecture" },
@@ -11,6 +14,8 @@ export const navItems = [
   { label: "Status Tracker", href: "#status" },
   { label: "Development Log", href: "#logs" },
   { label: "System Reports", href: "#reports" },
+  { label: "Payments", href: "#payments" },
+  { label: "Build Rules", href: "#build-rules" },
 ];
 
 export const opsMetrics = [
@@ -69,3 +74,76 @@ export const reports = [
 ];
 
 export const integrationBacklog = ["n8n webhook registry", "OpenClaw agent runtime", "Supabase event ledger", "Slack/Email command approvals"];
+
+export const operatingBackbone = [
+  {
+    area: "CRM",
+    owner: "Growth",
+    status: "Needs Review" as OperatingStatus,
+    source: "Tally lead payloads + future CRM records",
+    nextConnection: "Map accepted leads to account, contact, package, owner, and next action fields.",
+  },
+  {
+    area: "Lead Intake",
+    owner: "Automation",
+    status: "Connected" as OperatingStatus,
+    source: "Next.js Tally API route → n8n webhook",
+    nextConnection: "Add delivery audit rows to the system event ledger without changing the production webhook.",
+  },
+  {
+    area: "Workflow Registry",
+    owner: "Ops",
+    status: "Ready" as OperatingStatus,
+    source: "Checked-in n8n workflow JSON + human specs",
+    nextConnection: "Attach workflow IDs, SLA, credential owner, and rollback notes from Notion when available.",
+  },
+  {
+    area: "AI Agents Registry",
+    owner: "Founder Office",
+    status: "Ready" as OperatingStatus,
+    source: "Dashboard fixtures + Agent Logs",
+    nextConnection: "Bind each agent to prompts, workflow IDs, approval policies, and live health signals.",
+  },
+  {
+    area: "System Event Logging",
+    owner: "Engineering",
+    status: "Planned" as OperatingStatus,
+    source: "Agent Logs API fallback now; Supabase ledger later",
+    nextConnection: "Persist normalized events for lead intake, workflow runs, agent actions, payment events, and incidents.",
+  },
+  {
+    area: "Stripe / Payments",
+    owner: "Finance",
+    status: "Manual" as OperatingStatus,
+    source: "Payment links in lead routing",
+    nextConnection: "Add read-only Stripe event mirror after products, links, and webhook signing are reviewed.",
+  },
+];
+
+export const crmStages = [
+  { stage: "New lead", trigger: "Tally FORM_RESPONSE accepted", owner: "Growth", automationSafeRule: "Do not overwrite raw submission fields." },
+  { stage: "Qualified", trigger: "Package, budget, timeline, and business need confirmed", owner: "Founder Office", automationSafeRule: "Require human review before proposal generation." },
+  { stage: "Payment / booking", trigger: "Starter or Pro gets Stripe link; Custom Build gets booking link", owner: "Finance", automationSafeRule: "Never auto-charge or edit Stripe products from the dashboard." },
+  { stage: "Onboarding", trigger: "Payment confirmed or call booked", owner: "Ops", automationSafeRule: "Create tasks and docs only after source-of-truth confirmation." },
+];
+
+export const paymentTracks = [
+  { name: "Starter Automation Audit", source: "Stripe payment link", status: "Manual" as OperatingStatus, review: "Confirm link, product, tax, and fulfillment handoff before exposing live metrics." },
+  { name: "Pro Automation Audit", source: "Stripe payment link", status: "Manual" as OperatingStatus, review: "Confirm fulfillment capacity and refund procedure before automation expansion." },
+  { name: "Custom Build", source: "Booking link", status: "Ready" as OperatingStatus, review: "Track booked calls separately from paid invoices until contract terms are final." },
+];
+
+export const systemHealthChecks = [
+  { name: "Lead webhook path", state: "Connected" as OperatingStatus, detail: "Keep production path stable; validate with existing workflow scripts before publishing." },
+  { name: "Agent Logs", state: "Ready" as OperatingStatus, detail: "Dashboard uses Notion when configured and safe fallback fixtures otherwise." },
+  { name: "Workflow backups", state: "Ready" as OperatingStatus, detail: "Checked-in n8n JSON and backup scripts remain the recoverable source for automation changes." },
+  { name: "Payment telemetry", state: "Planned" as OperatingStatus, detail: "Prepare read-only event ingestion before adding any write-capable Stripe integration." },
+];
+
+export const buildRules = [
+  "Stabilize before expanding; do not rebuild working production workflows.",
+  "Use checked-in fixtures and adapter boundaries until live credentials are reviewed.",
+  "Prefer improving existing pages, routes, and workflow assets instead of duplicating systems.",
+  "Keep Notion, n8n, and Stripe changes manual until source-of-truth ownership is confirmed.",
+  "Document every new operating surface with owner, data source, next connector, and do-not-touch rule.",
+];

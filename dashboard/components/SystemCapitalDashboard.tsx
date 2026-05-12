@@ -12,11 +12,13 @@ import {
 } from "@/logging/lib/agent-logs";
 import { agentRoster, signalFeed, workflowStatuses } from "@/memory/data/shenora";
 import {
-  deriveLeadIntakeEventMetrics,
+  deriveSystemEventMetrics,
   formatSystemEventTime,
-  leadIntakeSystemEvents,
-  sortSystemEventsByNewest,
-} from "@/lib/system-events";
+  isFailedSystemEvent,
+  isHighPrioritySystemEvent,
+  isPaymentSystemEvent,
+  systemEventFixtures,
+} from "@/logging/lib/system-events";
 
 type RoadmapTrack = {
   title: string;
@@ -95,6 +97,7 @@ const moduleDefinitions = [
   { title: "CRM + Lead Intake", href: "/system-capital-os#crm", key: "crm", detail: "Lead stages, ownership, handoffs, and automation-safe operating rules." },
   { title: "Agent Registry", href: "/agents", key: "agents", detail: "Inspect autonomous workers, run tests, and view logs." },
   { title: "Workflow Architecture", href: "/automation", key: "automation", detail: "n8n workflow state, runbooks, and SLA controls." },
+  { title: "Workflow Governance", href: "/system-capital-os#workflow-governance", key: "governance", detail: "Production-safe rules for workflow changes, documentation, and read-only-first adapters." },
   { title: "System Event Logs", href: "/system-capital-os#logs", key: "logs", detail: "Development and runtime event ledger prepared for persistent storage." },
   { title: "Signal Engine", href: "/signals", key: "signals", detail: "Macro, risk, liquidity, and operational signal board." },
   { title: "Deployment Status", href: "/deployment", key: "deployment", detail: "Release surfaces, environment readiness, and blockers." },
@@ -173,6 +176,11 @@ export default function SystemCapitalDashboard() {
   const lastLeadCaptured = leadIntakeMetrics.lastLeadCaptured;
   const blockedWorkflows = workflowStatuses.filter((workflow) => workflow.status === "blocked").length;
   const runningWorkflows = workflowStatuses.filter((workflow) => workflow.status === "running" || workflow.status === "scheduled").length;
+  const systemEventMetrics = useMemo(() => deriveSystemEventMetrics(systemEventFixtures), []);
+  const recentSystemEvents = systemEventFixtures.slice(0, 4);
+  const failedSystemEvents = systemEventFixtures.filter(isFailedSystemEvent);
+  const highPrioritySystemEvents = systemEventFixtures.filter(isHighPrioritySystemEvent);
+  const paymentSystemEvents = systemEventFixtures.filter(isPaymentSystemEvent);
 
   const commandStats = [
     { label: "Active agents", value: String(Math.max(metrics.activeAgents, agentRoster.filter((agent) => agent.status === "running").length)) },
@@ -188,6 +196,7 @@ export default function SystemCapitalDashboard() {
       crm: "Staged",
       agents: `${metrics.activeAgents || agentRoster.length} active`,
       automation: `${runningWorkflows} live`,
+      governance: "Rules",
       signals: `${newestSignal.confidence}%`,
       deployment: blockedWorkflows > 0 ? `${blockedWorkflows} blocker` : "Ready",
       payments: "Manual",
@@ -195,7 +204,7 @@ export default function SystemCapitalDashboard() {
       prompts: `${displayLogs.filter((log) => /prompt|brief|copy|memo/i.test(`${log.action} ${log.result}`)).length} used`,
       brand: "Assets live",
       command: `${metrics.totalLogs} events`,
-      logs: `${leadIntakeMetrics.totalEvents} events`,
+      logs: `${systemEventMetrics.total} events`,
     };
 
     return { ...module, metric: metricByKey[module.key] || "Open" };
@@ -340,6 +349,87 @@ export default function SystemCapitalDashboard() {
           </div>
         </section>
 
+        <section className="scd-heartbeat scd-glass" aria-label="System Heartbeat demo event layer">
+          <div className="scd-heartbeat-header">
+            <div>
+              <p className="scd-kicker">System Heartbeat</p>
+              <h2>Demo-safe System Events layer for future Notion logging.</h2>
+              <p>
+                Fixture data previews how workflows will report into <strong>SC CORE - System Event Logger</strong> without touching live n8n workflows, Notion, webhook paths, or Stripe write behavior.
+              </p>
+            </div>
+            <div className="scd-heartbeat-status">
+              <span>Workflow health</span>
+              <strong>{systemEventMetrics.workflowHealthSummary}</strong>
+              <small>{systemEventMetrics.successfulWorkflows} successful · {systemEventMetrics.failed} failed</small>
+            </div>
+          </div>
+
+          <div className="scd-heartbeat-metrics" aria-label="System Event counts">
+            <div>
+              <span>Recent events</span>
+              <strong>{systemEventMetrics.total}</strong>
+            </div>
+            <div>
+              <span>Failed events</span>
+              <strong>{systemEventMetrics.failed}</strong>
+            </div>
+            <div>
+              <span>High priority</span>
+              <strong>{systemEventMetrics.highPriority}</strong>
+            </div>
+            <div>
+              <span>Payment events</span>
+              <strong>{systemEventMetrics.paymentEvents}</strong>
+            </div>
+          </div>
+
+          <div className="scd-heartbeat-columns">
+            <div className="scd-heartbeat-panel">
+              <h3>Recent events</h3>
+              {recentSystemEvents.map((event) => (
+                <article className="scd-system-event" key={`${event.workflowKey}-${event.eventType}-${event.timestamp}`}>
+                  <span>{event.eventType}</span>
+                  <strong>{event.workflowName}</strong>
+                  <p>{event.status} · {event.priority} · {formatSystemEventTime(event.timestamp)}</p>
+                </article>
+              ))}
+            </div>
+
+            <div className="scd-heartbeat-panel">
+              <h3>Failed events</h3>
+              {failedSystemEvents.map((event) => (
+                <article className="scd-system-event" data-state="failed" key={`${event.workflowKey}-failed-${event.timestamp}`}>
+                  <span>{event.eventType}</span>
+                  <strong>{event.errorMessage || event.workflowName}</strong>
+                  <p>{event.aiSummary}</p>
+                </article>
+              ))}
+            </div>
+
+            <div className="scd-heartbeat-panel">
+              <h3>High priority</h3>
+              {highPrioritySystemEvents.map((event) => (
+                <article className="scd-system-event" data-state="priority" key={`${event.workflowKey}-priority-${event.timestamp}`}>
+                  <span>{event.priority}</span>
+                  <strong>{event.eventType}</strong>
+                  <p>{event.workflowName}</p>
+                </article>
+              ))}
+            </div>
+
+            <div className="scd-heartbeat-panel">
+              <h3>Payment events</h3>
+              {paymentSystemEvents.map((event) => (
+                <article className="scd-system-event" data-state="payment" key={`${event.workflowKey}-payment-${event.timestamp}`}>
+                  <span>{event.paymentStatus}</span>
+                  <strong>{event.eventType}</strong>
+                  <p>{event.clientName || "Manual review"} · {event.sourceSystem}</p>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
         <section className="scd-roadmap scd-glass" aria-label="Roadmap and Mission Control">
           <div className="scd-roadmap-header">
             <div>
@@ -824,6 +914,124 @@ export default function SystemCapitalDashboard() {
           font-weight: 800;
         }
 
+
+        .scd-heartbeat {
+          display: grid;
+          gap: 22px;
+          padding: 26px;
+        }
+
+        .scd-heartbeat-header {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) 240px;
+          gap: 22px;
+          align-items: stretch;
+        }
+
+        .scd-heartbeat-header h2 {
+          margin: 8px 0 10px;
+          font-size: clamp(1.7rem, 3vw, 2.6rem);
+          letter-spacing: -0.06em;
+        }
+
+        .scd-heartbeat-header p {
+          max-width: 780px;
+          color: #cbd5e1;
+          line-height: 1.7;
+        }
+
+        .scd-heartbeat-status,
+        .scd-heartbeat-metrics div,
+        .scd-heartbeat-panel,
+        .scd-system-event {
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          background: rgba(2, 6, 23, 0.44);
+        }
+
+        .scd-heartbeat-status {
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          border-radius: 24px;
+          padding: 18px;
+        }
+
+        .scd-heartbeat-status span,
+        .scd-heartbeat-metrics span,
+        .scd-system-event span {
+          color: var(--scd-cyan);
+          font-family: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+          font-size: 0.72rem;
+          font-weight: 800;
+          letter-spacing: 0.16em;
+          text-transform: uppercase;
+        }
+
+        .scd-heartbeat-status strong {
+          margin-top: 8px;
+          font-size: 2rem;
+          letter-spacing: -0.05em;
+        }
+
+        .scd-heartbeat-status small,
+        .scd-system-event p {
+          color: var(--scd-muted);
+          line-height: 1.45;
+        }
+
+        .scd-heartbeat-metrics {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 14px;
+        }
+
+        .scd-heartbeat-metrics div {
+          border-radius: 20px;
+          padding: 16px;
+        }
+
+        .scd-heartbeat-metrics strong {
+          display: block;
+          margin-top: 8px;
+          font-size: 2.2rem;
+          letter-spacing: -0.07em;
+        }
+
+        .scd-heartbeat-columns {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 14px;
+        }
+
+        .scd-heartbeat-panel {
+          border-radius: 22px;
+          padding: 16px;
+        }
+
+        .scd-heartbeat-panel h3 {
+          margin: 0 0 12px;
+          font-size: 1rem;
+        }
+
+        .scd-system-event {
+          border-radius: 16px;
+          padding: 12px;
+        }
+
+        .scd-system-event + .scd-system-event {
+          margin-top: 10px;
+        }
+
+        .scd-system-event strong {
+          display: block;
+          margin-top: 6px;
+          line-height: 1.3;
+        }
+
+        .scd-system-event[data-state="failed"] span { color: #fb7185; }
+        .scd-system-event[data-state="priority"] span { color: #fbbf24; }
+        .scd-system-event[data-state="payment"] span { color: #a78bfa; }
+
         .scd-activity {
           position: fixed;
           inset: 28px 28px 28px auto;
@@ -914,6 +1122,11 @@ export default function SystemCapitalDashboard() {
             border-radius: 28px;
             margin: 0 32px 32px;
           }
+
+          .scd-heartbeat-columns,
+          .scd-heartbeat-metrics {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
         }
 
         @media (max-width: 860px) {
@@ -936,10 +1149,14 @@ export default function SystemCapitalDashboard() {
 
           .scd-hero,
           .scd-module-grid,
-          .scd-event-health-grid,
-          .scd-event-columns {
-            grid-template-columns: 1fr;
-          }
+.scd-event-health-grid,
+.scd-event-columns,
+.scd-heartbeat-header,
+.scd-heartbeat-metrics,
+.scd-heartbeat-columns {
+  grid-template-columns: 1fr;
+}
+          
 
           .scd-system-events-header {
             display: grid;

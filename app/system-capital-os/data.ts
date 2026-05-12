@@ -10,9 +10,11 @@ export const navItems = [
   { label: "Agent Registry", href: "#agents" },
   { label: "Prompt Library", href: "#prompts" },
   { label: "Workflow Architecture", href: "#architecture" },
+  { label: "Workflow Governance", href: "#workflow-governance" },
   { label: "Founder Dashboard", href: "#founder" },
   { label: "Status Tracker", href: "#status" },
   { label: "Development Log", href: "#logs" },
+  { label: "System Events", href: "#system-events" },
   { label: "System Reports", href: "#reports" },
   { label: "Payments", href: "#payments" },
   { label: "Build Rules", href: "#build-rules" },
@@ -146,4 +148,38 @@ export const buildRules = [
   "Prefer improving existing pages, routes, and workflow assets instead of duplicating systems.",
   "Keep Notion, n8n, and Stripe changes manual until source-of-truth ownership is confirmed.",
   "Document every new operating surface with owner, data source, next connector, and do-not-touch rule.",
+];
+
+
+export const workflowGovernanceRules = [
+  {
+    rule: "Preserve production paths",
+    owner: "Automation",
+    checkpoint: "Confirm webhook path, active n8n workflow, rollback file, and credential owner before edits.",
+  },
+  {
+    rule: "Document before connecting",
+    owner: "Ops",
+    checkpoint: "Every workflow needs purpose, trigger, data touched, human approval point, and failure notification route.",
+  },
+  {
+    rule: "Read-only first",
+    owner: "Engineering",
+    checkpoint: "New connectors should observe current state before adding write actions or side effects.",
+  },
+  {
+    rule: "One source of truth",
+    owner: "Founder Office",
+    checkpoint: "Avoid duplicate registries; link dashboard cards to the approved registry or adapter once available.",
+  },
+];
+
+export const systemEventBlueprint = [
+  { field: "eventId", purpose: "Stable unique identifier for audit and replay." },
+  { field: "eventType", purpose: "Lead, workflow_run, agent_action, payment_event, incident, or manual_review." },
+  { field: "source", purpose: "Origin system such as dashboard, Tally route, n8n, Notion, Stripe, or Supabase." },
+  { field: "owner", purpose: "Human or team responsible for the next action." },
+  { field: "severity", purpose: "Info, success, warning, blocked, or critical for triage." },
+  { field: "relatedRecord", purpose: "Optional lead, workflow, agent, payment, or issue reference." },
+  { field: "nextAction", purpose: "Plain-language operator handoff without triggering writes automatically." },
 ];

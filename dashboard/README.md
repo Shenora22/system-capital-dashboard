@@ -15,4 +15,4 @@ Dashboard components may read from `memory/` and render workflow, signal, and ag
 
 ## System OS Links
 
-The main dashboard intentionally links CRM, lead intake, system event logs, payments, and health cards to `/system-capital-os` anchors. This keeps the dashboard organized without duplicating partially connected modules before live data contracts are ready.
+The main dashboard intentionally links CRM, lead intake, workflow governance, system event logs, payments, and health cards to `/system-capital-os` anchors. This keeps the dashboard organized without duplicating partially connected modules before live data contracts are ready.

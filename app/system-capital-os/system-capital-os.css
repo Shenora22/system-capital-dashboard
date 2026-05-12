@@ -43,6 +43,7 @@ html { scroll-behavior: smooth; }
   top: 0;
   z-index: 5;
   height: 100vh;
+  overflow-y: auto;
   border-right: 1px solid var(--os-line);
   background: rgba(5, 7, 11, 0.86);
   backdrop-filter: blur(22px);
@@ -278,6 +279,8 @@ dd {
 #crm,
 #payments,
 #health,
+#workflow-governance,
+#system-events,
 #build-rules {
   scroll-margin-top: 24px;
 }

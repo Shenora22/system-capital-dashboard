@@ -27,3 +27,69 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+.drone-map-grid {
+  animation: drone-grid-drift 18s linear infinite;
+}
+
+.drone-radar-sweep {
+  animation: drone-radar-rotate 8s linear infinite;
+  opacity: 0.72;
+}
+
+.drone-active-marker {
+  animation: drone-marker-breathe 2.8s ease-in-out infinite;
+}
+
+.drone-active-radius {
+  animation: drone-radius-pulse 2.6s ease-out infinite;
+}
+
+@keyframes drone-grid-drift {
+  from {
+    background-position: 0 0, 0 0, 0 0;
+  }
+  to {
+    background-position: 0 0, 48px 48px, 48px 48px;
+  }
+}
+
+@keyframes drone-radar-rotate {
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+
+@keyframes drone-marker-breathe {
+  0%,
+  100% {
+    box-shadow: 0 0 18px rgba(103, 232, 249, 0.82), 0 0 52px rgba(103, 232, 249, 0.42);
+  }
+  50% {
+    box-shadow: 0 0 24px rgba(103, 232, 249, 0.95), 0 0 68px rgba(103, 232, 249, 0.54);
+  }
+}
+
+@keyframes drone-radius-pulse {
+  0% {
+    opacity: 0.48;
+    transform: translate(-50%, -50%) scale(0.7);
+  }
+  70% {
+    opacity: 0.08;
+    transform: translate(-50%, -50%) scale(1.35);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.5);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .drone-map-grid,
+  .drone-radar-sweep,
+  .drone-active-marker,
+  .drone-active-radius {
+    animation: none;
+  }
+}

@@ -54,7 +54,7 @@ function getBatteryColor(value: number) {
   return "bg-emerald-300";
 }
 
-function getMapPosition(drone: DroneFleetUnit) {
+function getMapPoint(drone: DroneFleetUnit) {
   const bounds = {
     minLng: -74.024,
     maxLng: -73.998,
@@ -65,8 +65,32 @@ function getMapPosition(drone: DroneFleetUnit) {
   const y = 100 - ((drone.latitude - bounds.minLat) / (bounds.maxLat - bounds.minLat)) * 100;
 
   return {
-    left: `${Math.min(92, Math.max(8, x))}%`,
-    top: `${Math.min(88, Math.max(12, y))}%`,
+    x: Math.min(92, Math.max(8, x)),
+    y: Math.min(88, Math.max(12, y)),
+  };
+}
+
+function getMapPosition(drone: DroneFleetUnit) {
+  const point = getMapPoint(drone);
+
+  return {
+    left: `${point.x}%`,
+    top: `${point.y}%`,
+  };
+}
+
+function getRouteTrail(drone: DroneFleetUnit) {
+  const point = getMapPoint(drone);
+  const radians = ((drone.heading + 180) * Math.PI) / 180;
+  const trailLength = 10;
+  const startX = Math.min(94, Math.max(6, point.x + Math.sin(radians) * trailLength));
+  const startY = Math.min(90, Math.max(10, point.y - Math.cos(radians) * trailLength));
+
+  return {
+    x1: `${startX}%`,
+    y1: `${startY}%`,
+    x2: `${point.x}%`,
+    y2: `${point.y}%`,
   };
 }
 
@@ -171,10 +195,10 @@ export default function DronePage() {
                 SkyTrace Mission Control
               </p>
               <h1 className="max-w-3xl text-4xl font-black tracking-tight text-white sm:text-5xl">
-                Demo-ready drone intelligence for System Capital.
+                AI Mission Control for Autonomous Drone Operations
               </h1>
               <p className="mt-4 max-w-2xl text-base leading-7 text-slate-300">
-                Mock fleet telemetry, live-style alerts, AI recommendations, and review-only automation actions in one pitch-ready operations view.
+                Run fleets. Detect issues. Automate decisions in real time.
               </p>
             </div>
             <div className="rounded-2xl border border-white/10 bg-slate-950/70 p-4 text-sm text-slate-300">
@@ -190,10 +214,10 @@ export default function DronePage() {
 
         <section className="grid gap-4 md:grid-cols-4">
           {[
-            ["Fleet online", snapshot.fleet.length, "active drones"],
-            ["Priority alerts", activeAlerts, "high / critical"],
-            ["Avg battery", `${averageBattery}%`, "fleet reserve"],
-            ["Avg signal", `${averageSignal}%`, "telemetry health"],
+            ["Fleet", snapshot.fleet.length, "online"],
+            ["Alerts", activeAlerts, "priority"],
+            ["Battery", `${averageBattery}%`, "average"],
+            ["Signal", `${averageSignal}%`, "average"],
           ].map(([label, value, helper]) => (
             <div key={label} className="rounded-3xl border border-white/10 bg-white/[0.045] p-5 backdrop-blur">
               <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">{label}</p>
@@ -208,18 +232,38 @@ export default function DronePage() {
             <div className="mb-4 flex items-center justify-between gap-4">
               <div>
                 <h2 className="text-xl font-black text-white">Tactical airspace map</h2>
-                <p className="text-sm text-slate-400">CSS mission map fallback keeps the demo working without paid map APIs.</p>
+                <p className="text-sm text-slate-400">Simulated airspace, routes, and fleet status.</p>
               </div>
               <span className="rounded-full bg-emerald-300/15 px-3 py-1 text-xs font-bold text-emerald-200">REVIEW MODE</span>
             </div>
 
-            <div className="relative h-[520px] overflow-hidden rounded-[1.5rem] border border-cyan-300/10 bg-[#07111f]">
-              <div className="absolute inset-0 bg-[linear-gradient(rgba(103,232,249,0.07)_1px,transparent_1px),linear-gradient(90deg,rgba(103,232,249,0.07)_1px,transparent_1px)] bg-[size:48px_48px]" />
-              <div className="absolute left-[14%] top-[18%] h-[66%] w-[72%] rounded-full border border-cyan-200/10" />
-              <div className="absolute left-[23%] top-[28%] h-[46%] w-[54%] rounded-full border border-cyan-200/10" />
+            <div className="relative h-[520px] overflow-hidden rounded-[1.5rem] border border-cyan-300/10 bg-[#07111f] shadow-inner shadow-cyan-950/30">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_52%_45%,rgba(103,232,249,0.12),transparent_34%),linear-gradient(rgba(103,232,249,0.075)_1px,transparent_1px),linear-gradient(90deg,rgba(103,232,249,0.075)_1px,transparent_1px)] bg-[size:100%_100%,48px_48px,48px_48px] drone-map-grid" />
+              <div className="absolute left-[14%] top-[18%] h-[66%] w-[72%] rounded-full border border-cyan-200/12" />
+              <div className="absolute left-[23%] top-[28%] h-[46%] w-[54%] rounded-full border border-cyan-200/12" />
+              <div className="absolute left-1/2 top-1/2 h-[78%] w-[78%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[conic-gradient(from_0deg,transparent_0deg,rgba(103,232,249,0.12)_18deg,transparent_45deg)] drone-radar-sweep" />
+              <svg className="pointer-events-none absolute inset-0 h-full w-full" aria-hidden="true">
+                {snapshot.fleet.map((drone) => {
+                  const trail = getRouteTrail(drone);
+                  const hasAlert = snapshot.alerts.some((alert) => alert.droneId === drone.id);
+
+                  return (
+                    <line
+                      key={`${drone.id}-trail`}
+                      x1={trail.x1}
+                      y1={trail.y1}
+                      x2={trail.x2}
+                      y2={trail.y2}
+                      stroke={hasAlert ? "rgba(248,113,113,0.34)" : "rgba(103,232,249,0.32)"}
+                      strokeWidth="1.5"
+                      strokeDasharray="5 7"
+                    />
+                  );
+                })}
+              </svg>
               <div className="absolute bottom-8 left-8 rounded-2xl border border-white/10 bg-black/35 px-4 py-3 text-xs text-slate-300 backdrop-blur">
                 <div className="font-bold text-white">Lower Manhattan perimeter</div>
-                <div>Simulated GPS layer • No external map token required</div>
+                <div>Simulated GPS • Review-only controls</div>
               </div>
 
               {snapshot.fleet.map((drone) => {
@@ -232,13 +276,16 @@ export default function DronePage() {
                     key={drone.id}
                     onClick={() => setSelectedDroneId(drone.id)}
                     className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-full border p-1 transition hover:scale-110 ${
-                      isSelected ? "border-cyan-200 bg-cyan-300/30 shadow-[0_0_35px_rgba(103,232,249,0.55)]" : "border-white/20 bg-slate-900/80"
+                      isSelected
+                        ? "border-cyan-100 bg-cyan-300/35 shadow-[0_0_18px_rgba(103,232,249,0.85),0_0_52px_rgba(103,232,249,0.46)] drone-active-marker"
+                        : "border-white/20 bg-slate-900/80 shadow-[0_0_18px_rgba(15,23,42,0.65)]"
                     }`}
                     style={position}
                     aria-label={`Select ${drone.name}`}
                   >
-                    <span className={`block h-5 w-5 rounded-full ${hasAlert ? "bg-red-400" : "bg-cyan-300"}`} />
-                    <span className="absolute left-7 top-1/2 -translate-y-1/2 whitespace-nowrap rounded-lg border border-white/10 bg-black/60 px-2 py-1 text-xs font-bold text-white">
+                    {isSelected && <span className="absolute left-1/2 top-1/2 h-14 w-14 -translate-x-1/2 -translate-y-1/2 rounded-full border border-cyan-200/35 drone-active-radius" />}
+                    <span className={`relative z-10 block h-5 w-5 rounded-full ${hasAlert ? "bg-red-400 shadow-[0_0_22px_rgba(248,113,113,0.75)]" : "bg-cyan-300 shadow-[0_0_22px_rgba(103,232,249,0.72)]"}`} />
+                    <span className="absolute left-7 top-1/2 z-20 -translate-y-1/2 whitespace-nowrap rounded-lg border border-white/10 bg-black/60 px-2 py-1 text-xs font-bold text-white shadow-lg shadow-black/30">
                       {drone.name}
                     </span>
                   </button>
@@ -271,7 +318,7 @@ export default function DronePage() {
             </div>
 
             <div className="rounded-[2rem] border border-white/10 bg-white/[0.045] p-5">
-              <h2 className="text-lg font-black text-white">Automation action log</h2>
+              <h2 className="text-lg font-black text-white">Action log</h2>
               <div className="mt-4 space-y-3">
                 {actionLogs.map((log) => (
                   <div key={log.id} className="rounded-2xl border border-white/10 bg-slate-950/70 p-3 text-sm text-slate-300">
@@ -285,7 +332,7 @@ export default function DronePage() {
         </section>
 
         <section className="grid gap-6 xl:grid-cols-[1fr_1fr]">
-          <Panel title="AI recommendations" helper="All actions are staged for review only; no live commands are sent." captureName="recommendations">
+          <Panel title="AI recommendations" helper="Review-only staging. No live commands are sent." captureName="recommendations">
             <div className="space-y-3">
               {snapshot.recommendations.map((recommendation) => {
                 const drone = snapshot.fleet.find((unit) => unit.id === recommendation.droneId);
@@ -299,14 +346,14 @@ export default function DronePage() {
                         </span>
                         <h3 className="mt-3 text-lg font-black text-white">{recommendation.title}</h3>
                         <p className="mt-2 text-sm leading-6 text-slate-300">{recommendation.rationale}</p>
-                        <p className="mt-2 text-xs font-bold text-slate-500">Asset: {drone?.name ?? recommendation.droneId}</p>
+                        <p className="mt-2 text-xs font-bold text-slate-500">{drone?.name ?? recommendation.droneId}</p>
                       </div>
                       <button
                         onClick={() => stageAction(recommendation)}
                         disabled={pendingActionId === recommendation.id}
                         className="rounded-xl border border-cyan-200/20 bg-cyan-300 px-4 py-2 text-sm font-black text-slate-950 transition hover:bg-cyan-200 disabled:cursor-wait disabled:opacity-60"
                       >
-                        {pendingActionId === recommendation.id ? "Staging…" : "Stage action"}
+                        {pendingActionId === recommendation.id ? "Staging…" : "Stage"}
                       </button>
                     </div>
                   </article>
@@ -315,7 +362,7 @@ export default function DronePage() {
             </div>
           </Panel>
 
-          <Panel title="Alert review queue" helper="Severity, confidence, and field details for the operator review loop." captureName="alerts">
+          <Panel title="Alerts" helper="Severity, confidence, and operator context." captureName="alerts">
             <div className="space-y-3">
               {snapshot.alerts.map((alert) => {
                 const drone = snapshot.fleet.find((unit) => unit.id === alert.droneId);
@@ -324,7 +371,7 @@ export default function DronePage() {
                   <article key={alert.id} className={`rounded-2xl border p-4 ${severityStyles[alert.severity]}`}>
                     <div className="flex items-center justify-between gap-3">
                       <span className="text-xs font-black uppercase tracking-[0.18em]">{alert.severity}</span>
-                      <span className="rounded-full bg-black/25 px-2 py-1 text-xs font-bold">{alert.confidence}% confidence</span>
+                      <span className="rounded-full bg-black/25 px-2 py-1 text-xs font-bold">{alert.confidence}%</span>
                     </div>
                     <h3 className="mt-3 text-lg font-black text-white">{alert.title}</h3>
                     <p className="mt-2 text-sm leading-6 text-slate-200">{alert.detail}</p>
@@ -338,7 +385,7 @@ export default function DronePage() {
           </Panel>
         </section>
 
-        <Panel title="Fleet telemetry" helper="Mock data is structured to match the fleet API and future Supabase ingestion." captureName="telemetry">
+        <Panel title="Fleet telemetry" helper="Mock API data for demo-safe ingestion." captureName="telemetry">
           <div className="overflow-hidden rounded-2xl border border-white/10">
             <table className="w-full min-w-[760px] border-collapse text-left text-sm">
               <thead className="bg-white/[0.06] text-xs uppercase tracking-[0.18em] text-slate-400">
@@ -380,7 +427,7 @@ export default function DronePage() {
 
 function Metric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-slate-950/65 p-3">
+    <div className="rounded-2xl border border-white/10 bg-slate-950/65 p-3.5">
       <div className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">{label}</div>
       <div className="mt-1 font-bold capitalize text-white">{value}</div>
     </div>
@@ -403,7 +450,7 @@ function HealthBar({ label, value }: { label: string; value: number }) {
 
 function Panel({ title, helper, children, captureName }: { title: string; helper: string; children: React.ReactNode; captureName?: string }) {
   return (
-    <section data-pitch-capture={captureName} className="rounded-[2rem] border border-white/10 bg-white/[0.045] p-5 backdrop-blur">
+    <section data-pitch-capture={captureName} className="rounded-[2rem] border border-white/10 bg-white/[0.045] p-5 shadow-xl shadow-slate-950/25 backdrop-blur">
       <div className="mb-4">
         <h2 className="text-xl font-black text-white">{title}</h2>
         <p className="mt-1 text-sm text-slate-400">{helper}</p>

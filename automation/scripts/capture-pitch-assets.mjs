@@ -13,6 +13,7 @@ const outputDir = resolve(repoRoot, "public/pitch-assets");
 const baseUrl = process.env.PITCH_CAPTURE_URL || "http://127.0.0.1:3000";
 const droneUrl = `${baseUrl.replace(/\/$/, "")}/drone`;
 const viewport = { width: 1440, height: 1100 };
+const allowFallback = process.env.PITCH_CAPTURE_ALLOW_FALLBACK === "1";
 
 const assets = [
   { name: "skytrace-dashboard-hero.png", selector: null, description: "full dashboard hero viewport" },
@@ -28,7 +29,15 @@ async function main() {
   try {
     await captureWithPlaywright();
   } catch (error) {
-    console.warn("[pitch-assets] Browser capture unavailable; writing deterministic fallback PNG assets instead.");
+    if (!allowFallback) {
+      console.error("[pitch-assets] Browser capture failed; refusing to overwrite pitch assets with fallback graphics.");
+      console.error(
+        "[pitch-assets] Set PITCH_CAPTURE_ALLOW_FALLBACK=1 only when placeholder assets are explicitly desired.",
+      );
+      throw error;
+    }
+
+    console.warn("[pitch-assets] Browser capture failed; PITCH_CAPTURE_ALLOW_FALLBACK=1, writing deterministic fallback PNG assets.");
     console.warn(`[pitch-assets] Reason: ${error.message}`);
     await createFallbackAssets();
   }
@@ -44,18 +53,25 @@ async function captureWithPlaywright() {
     try {
       ({ chromium } = require("playwright"));
     } catch {
-      throw new Error("Playwright is not installed. Install @playwright/test and Chromium for exact browser screenshots.");
+      throw new Error(
+        "Playwright is not installed. Install @playwright/test and Chromium, then rerun npm run capture:pitch-assets.",
+      );
     }
   }
 
+  console.log(`[pitch-assets] Capturing live browser screenshots from ${droneUrl}`);
   const server = await ensureServer();
   let browser;
   try {
     browser = await chromium.launch({ headless: true });
     const page = await browser.newPage({ viewport, deviceScaleFactor: 1 });
-    await page.goto(droneUrl, { waitUntil: "networkidle" });
     await page.emulateMedia({ colorScheme: "dark" });
-    await page.waitForSelector('[data-pitch-capture="map"]', { timeout: 15_000 });
+
+    const response = await page.goto(droneUrl, { waitUntil: "domcontentloaded" });
+    if (!response?.ok()) throw new Error(`Unable to load ${droneUrl}; status ${response?.status() ?? "unknown"}.`);
+
+    await page.waitForLoadState("networkidle");
+    await assertLiveDroneDom(page);
 
     for (const asset of assets) {
       const path = join(outputDir, asset.name);
@@ -66,10 +82,34 @@ async function captureWithPlaywright() {
       }
       console.log(`[pitch-assets] Captured ${asset.description}: ${asset.name}`);
     }
+
+    console.log("[pitch-assets] Browser capture succeeded from the live /drone dashboard DOM.");
   } finally {
     await browser?.close();
     server?.kill("SIGTERM");
   }
+}
+
+async function assertLiveDroneDom(page) {
+  await page.waitForSelector('[data-pitch-capture="dashboard"]', { timeout: 15_000 });
+
+  for (const asset of assets.filter((asset) => asset.selector)) {
+    const count = await page.locator(asset.selector).count();
+    if (count === 0) throw new Error(`Missing capture hook ${asset.selector} for ${asset.name}.`);
+  }
+
+  await page.waitForFunction(
+    () =>
+      !document.body.innerText.includes("Syncing fleet API…") &&
+      !document.body.innerText.includes("Syncing fleet API..."),
+    undefined,
+    { timeout: 15_000 },
+  );
+
+  const missionControlHeading = page.getByRole("heading", {
+    name: /AI Mission Control for Autonomous Drone Operations/i,
+  });
+  await missionControlHeading.waitFor({ timeout: 15_000 });
 }
 
 async function ensureServer() {

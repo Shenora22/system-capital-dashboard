@@ -17,6 +17,8 @@ export type DroneFleetUnit = {
   speedMph: number;
   batteryPct: number;
   signalPct: number;
+  rssiDbm?: number;
+  geofenceStatus?: "inside" | "breached";
   lastPing: string;
   heading: number;
   payload: string;
@@ -94,6 +96,8 @@ export const mockFleet: DroneFleetUnit[] = [
     speedMph: 28,
     batteryPct: 78,
     signalPct: 96,
+    rssiDbm: -52,
+    geofenceStatus: "inside",
     lastPing: "2026-05-11T14:31:42.000Z",
     heading: 48,
     payload: "EO/IR camera",
@@ -112,6 +116,8 @@ export const mockFleet: DroneFleetUnit[] = [
     speedMph: 14,
     batteryPct: 42,
     signalPct: 89,
+    rssiDbm: -61,
+    geofenceStatus: "breached",
     lastPing: "2026-05-11T14:31:57.000Z",
     heading: 116,
     payload: "Thermal + spotlight",
@@ -130,6 +136,8 @@ export const mockFleet: DroneFleetUnit[] = [
     speedMph: 21,
     batteryPct: 18,
     signalPct: 73,
+    rssiDbm: -72,
+    geofenceStatus: "inside",
     lastPing: "2026-05-11T14:31:39.000Z",
     heading: 301,
     payload: "Zoom camera",
@@ -148,6 +156,8 @@ export const mockFleet: DroneFleetUnit[] = [
     speedMph: 33,
     batteryPct: 64,
     signalPct: 57,
+    rssiDbm: -88,
+    geofenceStatus: "inside",
     lastPing: "2026-05-11T14:30:11.000Z",
     heading: 19,
     payload: "Multispectral camera",

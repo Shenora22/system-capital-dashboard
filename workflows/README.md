@@ -10,3 +10,7 @@ The workflows subsystem documents business processes that can be executed by age
 ## TODO
 
 - TODO(workflows): Add workflow specs for lead capture, signal generation, social posting, and founder daily brief before expanding executable automations.
+
+## SkyTrace
+
+- [`skytrace-mvp-operating-spec.md`](./skytrace-mvp-operating-spec.md) — implementation-backed MVP operating spec for the SkyTrace drone workflow module inside System Capital OS.

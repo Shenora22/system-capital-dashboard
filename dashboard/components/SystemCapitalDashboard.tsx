@@ -19,6 +19,11 @@ import {
   isPaymentSystemEvent,
   systemEventFixtures,
 } from "@/logging/lib/system-events";
+import {
+  deriveLeadIntakeEventMetrics,
+  leadIntakeSystemEvents,
+  sortSystemEventsByNewest,
+} from "@/lib/system-events";
 
 type RoadmapTrack = {
   title: string;
@@ -172,20 +177,20 @@ export default function SystemCapitalDashboard() {
   const newestSignal = signalFeed[0];
   const systemEvents = useMemo(() => sortSystemEventsByNewest(leadIntakeSystemEvents), []);
   const leadIntakeMetrics = useMemo(() => deriveLeadIntakeEventMetrics(systemEvents), [systemEvents]);
-  const failedSystemEvents = leadIntakeMetrics.failedEvents;
+  const leadIntakeFailedEvents = leadIntakeMetrics.failedEvents;
   const lastLeadCaptured = leadIntakeMetrics.lastLeadCaptured;
   const blockedWorkflows = workflowStatuses.filter((workflow) => workflow.status === "blocked").length;
   const runningWorkflows = workflowStatuses.filter((workflow) => workflow.status === "running" || workflow.status === "scheduled").length;
   const {
     systemEventMetrics,
     recentSystemEvents,
-    failedSystemEvents,
+    failedHeartbeatSystemEvents,
     highPrioritySystemEvents,
     paymentSystemEvents,
   } = useMemo(() => ({
     systemEventMetrics: deriveSystemEventMetrics(systemEventFixtures),
     recentSystemEvents: systemEventFixtures.slice(0, 4),
-    failedSystemEvents: systemEventFixtures.filter(isFailedSystemEvent),
+    failedHeartbeatSystemEvents: systemEventFixtures.filter(isFailedSystemEvent),
     highPrioritySystemEvents: systemEventFixtures.filter(isHighPrioritySystemEvent),
     paymentSystemEvents: systemEventFixtures.filter(isPaymentSystemEvent),
   }), []);
@@ -193,7 +198,7 @@ export default function SystemCapitalDashboard() {
   const commandStats = [
     { label: "Active agents", value: String(Math.max(metrics.activeAgents, agentRoster.filter((agent) => agent.status === "running").length)) },
     { label: "Recent logs", value: String(metrics.totalLogs) },
-    { label: "Needs review", value: String(metrics.attentionItems + blockedWorkflows + failedSystemEvents.length) },
+    { label: "Needs review", value: String(metrics.attentionItems + blockedWorkflows + leadIntakeFailedEvents.length + failedHeartbeatSystemEvents.length) },
     { label: "Events today", value: String(leadIntakeMetrics.eventsToday) },
   ];
 
@@ -303,11 +308,11 @@ export default function SystemCapitalDashboard() {
             <article>
               <span>Lead Intake Health</span>
               <strong>{leadIntakeMetrics.health}</strong>
-              <p>{failedSystemEvents.length ? `${failedSystemEvents.length} event needs review` : "No failed lead events in fixtures"}</p>
+              <p>{leadIntakeFailedEvents.length ? `${leadIntakeFailedEvents.length} event needs review` : "No failed lead events in fixtures"}</p>
             </article>
             <article>
               <span>Failed Events</span>
-              <strong>{failedSystemEvents.length}</strong>
+              <strong>{leadIntakeFailedEvents.length}</strong>
               <p>{leadIntakeMetrics.lastFailure?.errorMessage || "No active failure in the event fixture"}</p>
             </article>
             <article>
@@ -342,7 +347,7 @@ export default function SystemCapitalDashboard() {
             <div>
               <div className="scd-section-label">Failed Events</div>
               <div className="scd-system-event-list">
-                {failedSystemEvents.map((event) => (
+                {leadIntakeFailedEvents.map((event) => (
                   <article className="scd-system-event" data-tone="rose" key={event.id}>
                     <div>
                       <strong>{event.eventType}</strong>
@@ -406,7 +411,7 @@ export default function SystemCapitalDashboard() {
 
             <div className="scd-heartbeat-panel">
               <h3>Failed events</h3>
-              {failedSystemEvents.map((event) => (
+              {failedHeartbeatSystemEvents.map((event) => (
                 <article className="scd-system-event" data-state="failed" key={`${event.workflowKey}-failed-${event.timestamp}`}>
                   <span>{event.eventType}</span>
                   <strong>{event.errorMessage || event.workflowName}</strong>

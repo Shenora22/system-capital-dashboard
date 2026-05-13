@@ -2,12 +2,37 @@ import type { DroneFleetUnit } from "@/lib/drone-mission";
 
 export type SkyTraceEventSource = "telemetry" | "operator" | "system" | "ai";
 export type SkyTraceEventSeverity = "info" | "warn" | "critical";
-export type SkyTraceEventStatus = "open" | "acknowledged" | "resolved" | "escalated";
+export type SkyTraceEventStatus =
+  | "open"
+  | "acknowledged"
+  | "resolved"
+  | "escalated";
 export type MissionPhase = "PRE_MISSION" | "ACTIVE_MISSION" | "POST_MISSION";
-export type MissionLifecycleStatus = "PREFLIGHT" | "PENDING_APPROVAL" | "ACTIVE" | "ABORTED" | "CLOSED" | "BLOCKED";
-export type ApprovalState = "PENDING_APPROVAL" | "APPROVED" | "DENIED" | "EXECUTED" | "BLOCKED" | "ESCALATED";
+export type MissionLifecycleStatus =
+  | "PREFLIGHT"
+  | "PENDING_APPROVAL"
+  | "ACTIVE"
+  | "ABORTED"
+  | "CLOSED"
+  | "BLOCKED";
+export type ApprovalState =
+  | "PENDING_APPROVAL"
+  | "APPROVED"
+  | "DENIED"
+  | "EXECUTED"
+  | "BLOCKED"
+  | "ESCALATED";
+
+export type OpenClawSkyTraceEventType =
+  | "skytrace.mission.preflight_started"
+  | "skytrace.mission.preflight_completed"
+  | "skytrace.mission.preflight_failed"
+  | "skytrace.mission.approval_requested"
+  | "skytrace.mission.started"
+  | "skytrace.mission.denied";
 
 export type SkyTraceEventType =
+  | OpenClawSkyTraceEventType
   | "preflight_check"
   | "mission_start"
   | "mission_end"
@@ -82,10 +107,14 @@ export const initialPreflightChecklist: PreflightChecklistItem[] = [
   },
 ];
 
-export function createSkyTraceEvent(input: Omit<SkyTraceEvent, "eventId"> & { eventId?: string }): SkyTraceEvent {
+export function createSkyTraceEvent(
+  input: Omit<SkyTraceEvent, "eventId"> & { eventId?: string },
+): SkyTraceEvent {
   return {
     ...input,
-    eventId: input.eventId ?? `${input.missionId}-${input.type}-${Date.parse(input.timestamp)}-${Math.random().toString(36).slice(2, 7)}`,
+    eventId:
+      input.eventId ??
+      `${input.missionId}-${input.type}-${Date.parse(input.timestamp)}-${Math.random().toString(36).slice(2, 7)}`,
   };
 }
 
@@ -286,11 +315,21 @@ export function evaluateTelemetryThresholds(fleet: DroneFleetUnit[], options: Th
   return events;
 }
 
-export function generateMissionSummary(events: SkyTraceEvent[], missionId = skyTraceMissionId) {
-  const criticalCount = events.filter((event) => event.severity === "critical").length;
+export function generateMissionSummary(
+  events: SkyTraceEvent[],
+  missionId = skyTraceMissionId,
+) {
+  const criticalCount = events.filter(
+    (event) => event.severity === "critical",
+  ).length;
   const warnCount = events.filter((event) => event.severity === "warn").length;
-  const approvals = events.filter((event) => event.type === "approval_granted").length;
-  const resolved = events.filter((event) => event.status === "resolved" || event.type === "incident_resolved").length;
+  const approvals = events.filter(
+    (event) => event.type === "approval_granted",
+  ).length;
+  const resolved = events.filter(
+    (event) =>
+      event.status === "resolved" || event.type === "incident_resolved",
+  ).length;
 
   return `SkyTrace demo mission ${missionId} closed with ${events.length} logged events: ${criticalCount} critical, ${warnCount} warn, ${approvals} approval grant(s), and ${resolved} resolved incident marker(s). All actions remained simulated; no live drone commands were sent.`;
 }

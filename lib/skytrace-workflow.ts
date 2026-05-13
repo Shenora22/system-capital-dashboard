@@ -128,9 +128,7 @@ export function runPreflightChecklist(
 
   return {
     passed,
-    approvalState: passed
-      ? ("PENDING_APPROVAL" as ApprovalState)
-      : ("BLOCKED" as ApprovalState),
+    approvalState: passed ? ("PENDING_APPROVAL" as ApprovalState) : ("BLOCKED" as ApprovalState),
     event: createSkyTraceEvent({
       eventId: `${missionId}-preflight-${passed ? "pass" : "fail"}`,
       missionId,
@@ -141,9 +139,7 @@ export function runPreflightChecklist(
       payload: {
         checklist,
         failedItems: failedItems.map((item) => item.label),
-        message: passed
-          ? "Preflight checklist passed; operator approval requested."
-          : "Preflight failed; mission start blocked.",
+        message: passed ? "Preflight checklist passed; operator approval requested." : "Preflight failed; mission start blocked.",
       },
       status: passed ? "acknowledged" : "open",
       requiresApproval: passed,
@@ -151,10 +147,7 @@ export function runPreflightChecklist(
   };
 }
 
-export function evaluateTelemetryThresholds(
-  fleet: DroneFleetUnit[],
-  options: ThresholdEvaluationOptions,
-): SkyTraceEvent[] {
+export function evaluateTelemetryThresholds(fleet: DroneFleetUnit[], options: ThresholdEvaluationOptions): SkyTraceEvent[] {
   const now = options.now ?? new Date().toISOString();
   const nowMs = Date.parse(now);
   const existingEventIds = options.existingEventIds ?? new Set<string>();
@@ -164,11 +157,7 @@ export function evaluateTelemetryThresholds(
     if (!existingEventIds.has(event.eventId)) events.push(event);
   };
 
-  const addApprovalRequest = (
-    eventId: string,
-    timestamp: string,
-    payload: Record<string, unknown>,
-  ) => {
+  const addApprovalRequest = (eventId: string, timestamp: string, payload: Record<string, unknown>) => {
     addEvent(
       createSkyTraceEvent({
         eventId,
@@ -186,10 +175,7 @@ export function evaluateTelemetryThresholds(
 
   fleet.forEach((drone) => {
     const rssiDbm = drone.rssiDbm ?? signalPctToRssiDbm(drone.signalPct);
-    const secondsSincePing = Math.max(
-      0,
-      Math.round((nowMs - Date.parse(drone.lastPing)) / 1000),
-    );
+    const secondsSincePing = Math.max(0, Math.round((nowMs - Date.parse(drone.lastPing)) / 1000));
     const payloadBase = {
       droneId: drone.id,
       droneName: drone.name,
@@ -206,26 +192,16 @@ export function evaluateTelemetryThresholds(
           source: "telemetry",
           type: "battery_warning",
           severity: "critical",
-          payload: {
-            ...payloadBase,
-            batteryPct: drone.batteryPct,
-            message:
-              "Battery below 10%; operator approval required before continuing.",
-          },
+          payload: { ...payloadBase, batteryPct: drone.batteryPct, message: "Battery below 10%; operator approval required before continuing." },
           status: "open",
           requiresApproval: true,
         }),
       );
-      addApprovalRequest(
-        `${options.missionId}-${drone.id}-battery-approval-requested`,
-        now,
-        {
-          ...payloadBase,
-          approvalFor: "battery_warning",
-          message:
-            "Approval requested: continue, abort, or delegate after critical battery warning.",
-        },
-      );
+      addApprovalRequest(`${options.missionId}-${drone.id}-battery-approval-requested`, now, {
+        ...payloadBase,
+        approvalFor: "battery_warning",
+        message: "Approval requested: continue, abort, or delegate after critical battery warning.",
+      });
     } else if (drone.batteryPct < 20) {
       addEvent(
         createSkyTraceEvent({
@@ -235,11 +211,7 @@ export function evaluateTelemetryThresholds(
           source: "telemetry",
           type: "battery_warning",
           severity: "warn",
-          payload: {
-            ...payloadBase,
-            batteryPct: drone.batteryPct,
-            message: "Battery below 20%; WARN auto-logged.",
-          },
+          payload: { ...payloadBase, batteryPct: drone.batteryPct, message: "Battery below 20%; WARN auto-logged." },
           status: "acknowledged",
           requiresApproval: false,
         }),
@@ -255,11 +227,7 @@ export function evaluateTelemetryThresholds(
           source: "telemetry",
           type: "signal_loss",
           severity: "warn",
-          payload: {
-            ...payloadBase,
-            rssiDbm,
-            message: "RSSI below -85 dBm; WARN auto-logged.",
-          },
+          payload: { ...payloadBase, rssiDbm, message: "RSSI below -85 dBm; WARN auto-logged." },
           status: "acknowledged",
           requiresApproval: false,
         }),
@@ -275,26 +243,16 @@ export function evaluateTelemetryThresholds(
           source: "telemetry",
           type: "incident_opened",
           severity: "critical",
-          payload: {
-            ...payloadBase,
-            secondsSincePing,
-            trigger: "no_ping_gt_5s",
-            message: "No ping for more than 5 seconds; incident opened.",
-          },
+          payload: { ...payloadBase, secondsSincePing, trigger: "no_ping_gt_5s", message: "No ping for more than 5 seconds; incident opened." },
           status: "open",
           requiresApproval: true,
         }),
       );
-      addApprovalRequest(
-        `${options.missionId}-${drone.id}-no-ping-approval-requested`,
-        now,
-        {
-          ...payloadBase,
-          approvalFor: "incident_opened",
-          message:
-            "Approval requested: continue, abort, or delegate no-ping incident.",
-        },
-      );
+      addApprovalRequest(`${options.missionId}-${drone.id}-no-ping-approval-requested`, now, {
+        ...payloadBase,
+        approvalFor: "incident_opened",
+        message: "Approval requested: continue, abort, or delegate no-ping incident.",
+      });
     }
 
     if (drone.geofenceStatus === "breached") {
@@ -306,26 +264,16 @@ export function evaluateTelemetryThresholds(
           source: "telemetry",
           type: "geofence_breach",
           severity: "critical",
-          payload: {
-            ...payloadBase,
-            latitude: drone.latitude,
-            longitude: drone.longitude,
-            message: "Geofence breach detected; operator approval required.",
-          },
+          payload: { ...payloadBase, latitude: drone.latitude, longitude: drone.longitude, message: "Geofence breach detected; operator approval required." },
           status: "open",
           requiresApproval: true,
         }),
       );
-      addApprovalRequest(
-        `${options.missionId}-${drone.id}-geofence-approval-requested`,
-        now,
-        {
-          ...payloadBase,
-          approvalFor: "geofence_breach",
-          message:
-            "Approval requested: continue, abort, or delegate geofence breach.",
-        },
-      );
+      addApprovalRequest(`${options.missionId}-${drone.id}-geofence-approval-requested`, now, {
+        ...payloadBase,
+        approvalFor: "geofence_breach",
+        message: "Approval requested: continue, abort, or delegate geofence breach.",
+      });
     }
 
     if (drone.speedMph > 32) {
@@ -337,11 +285,7 @@ export function evaluateTelemetryThresholds(
           source: "telemetry",
           type: "telemetry_anomaly",
           severity: "warn",
-          payload: {
-            ...payloadBase,
-            speedMph: drone.speedMph,
-            message: "Speed anomaly above demo envelope; WARN auto-logged.",
-          },
+          payload: { ...payloadBase, speedMph: drone.speedMph, message: "Speed anomaly above demo envelope; WARN auto-logged." },
           status: "acknowledged",
           requiresApproval: false,
         }),
@@ -350,8 +294,7 @@ export function evaluateTelemetryThresholds(
   });
 
   if (options.missionStartedAt && options.missionDurationLimitMinutes) {
-    const minutesElapsed =
-      (nowMs - Date.parse(options.missionStartedAt)) / 60_000;
+    const minutesElapsed = (nowMs - Date.parse(options.missionStartedAt)) / 60_000;
     if (minutesElapsed > options.missionDurationLimitMinutes) {
       addEvent(
         createSkyTraceEvent({
@@ -361,11 +304,7 @@ export function evaluateTelemetryThresholds(
           source: "system",
           type: "telemetry_anomaly",
           severity: "warn",
-          payload: {
-            minutesElapsed: Math.round(minutesElapsed),
-            limitMinutes: options.missionDurationLimitMinutes,
-            message: "Mission duration exceeded; operator notified.",
-          },
+          payload: { minutesElapsed: Math.round(minutesElapsed), limitMinutes: options.missionDurationLimitMinutes, message: "Mission duration exceeded; operator notified." },
           status: "acknowledged",
           requiresApproval: false,
         }),

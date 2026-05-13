@@ -165,11 +165,19 @@ export default function SystemCapitalDashboard() {
   const newestSignal = signalFeed[0];
   const blockedWorkflows = workflowStatuses.filter((workflow) => workflow.status === "blocked").length;
   const runningWorkflows = workflowStatuses.filter((workflow) => workflow.status === "running" || workflow.status === "scheduled").length;
-  const systemEventMetrics = useMemo(() => deriveSystemEventMetrics(systemEventFixtures), []);
-  const recentSystemEvents = systemEventFixtures.slice(0, 4);
-  const failedSystemEvents = systemEventFixtures.filter(isFailedSystemEvent);
-  const highPrioritySystemEvents = systemEventFixtures.filter(isHighPrioritySystemEvent);
-  const paymentSystemEvents = systemEventFixtures.filter(isPaymentSystemEvent);
+  const {
+    systemEventMetrics,
+    recentSystemEvents,
+    failedSystemEvents,
+    highPrioritySystemEvents,
+    paymentSystemEvents,
+  } = useMemo(() => ({
+    systemEventMetrics: deriveSystemEventMetrics(systemEventFixtures),
+    recentSystemEvents: systemEventFixtures.slice(0, 4),
+    failedSystemEvents: systemEventFixtures.filter(isFailedSystemEvent),
+    highPrioritySystemEvents: systemEventFixtures.filter(isHighPrioritySystemEvent),
+    paymentSystemEvents: systemEventFixtures.filter(isPaymentSystemEvent),
+  }), []);
 
   const commandStats = [
     { label: "Active agents", value: String(Math.max(metrics.activeAgents, agentRoster.filter((agent) => agent.status === "running").length)) },
@@ -900,8 +908,10 @@ export default function SystemCapitalDashboard() {
 
           .scd-activity {
             grid-column: 2;
+            width: auto;
             min-height: auto;
             position: relative;
+            inset: auto;
             border: 1px solid var(--scd-line);
             border-radius: 28px;
             margin: 0 32px 32px;

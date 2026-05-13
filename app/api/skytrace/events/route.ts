@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { normalizeSkyTraceLocalEvent, validateSkyTraceLocalEvent } from "@/lib/skytrace-api";
+import {
+  mapSkyTraceEventToSystemEvent,
+  normalizeSkyTraceLocalEvent,
+  validateSkyTraceLocalEvent,
+} from "@/lib/skytrace-api";
 
 export const dynamic = "force-dynamic";
 
@@ -19,13 +23,15 @@ export async function POST(request: Request) {
   }
 
   const event = normalizeSkyTraceLocalEvent(validation.data);
+  const systemEventPreview = mapSkyTraceEventToSystemEvent(event);
 
   // Future integration points intentionally left local/demo-safe for now:
-  // - System Events write: append this normalized event to the shared event ledger.
+  // - System Events write: append systemEventPreview to the shared event ledger.
   // - Airtable write: upsert mission/event rows for ops reporting.
   // - n8n handoff: fan out to Telegram, dashboard sync, and audit workflows.
   return NextResponse.json({
     ok: true,
     event,
+    systemEventPreview,
   });
 }

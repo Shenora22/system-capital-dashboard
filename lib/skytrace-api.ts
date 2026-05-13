@@ -1,4 +1,5 @@
 import { createSkyTraceEvent } from "@/lib/skytrace-workflow";
+import type { SystemEvent, SystemEventPriority, SystemEventStatus } from "@/lib/system-events";
 import type {
   OpenClawSkyTraceEventType,
   SkyTraceEvent,
@@ -79,6 +80,27 @@ export type SkyTraceApprovalRespondResult = {
   status: Extract<SkyTraceApiMissionStatus, "STARTED" | "DENIED">;
   events: SkyTraceEvent[];
 };
+
+export const skyTraceSystemEventWorkflowName = "SkyTrace Mission Readiness";
+export const skyTraceSystemEventWorkflowKey = "SKYTRACE";
+
+export function mapSkyTraceEventToSystemEvent(event: SkyTraceEvent): SystemEvent {
+  const note = readSkyTraceEventNote(event);
+
+  return {
+    id: event.eventId,
+    eventType: event.type,
+    workflowName: skyTraceSystemEventWorkflowName,
+    workflowKey: `${skyTraceSystemEventWorkflowKey}:${event.missionId}`,
+    status: mapSkyTraceStatusToSystemEventStatus(event),
+    priority: mapSkyTraceSeverityToSystemEventPriority(event),
+    timestamp: event.timestamp,
+    sourceSystem: `SkyTrace ${event.source}`,
+    notes: note,
+    errorMessage: event.severity === "critical" ? note : undefined,
+    aiSummary: typeof event.payload.summary === "string" ? event.payload.summary : undefined,
+  };
+}
 
 const openClawEventLabels: Record<OpenClawSkyTraceEventType, string> = {
   "skytrace.mission.preflight_started": "Preflight started",
@@ -477,6 +499,25 @@ function getSkyTracePreflightBlockers(checks: SkyTraceApiChecklistItem[]) {
   return checks
     .filter((check) => check.status !== "passed")
     .map((check) => `${check.label} (${check.severity})`);
+}
+
+function mapSkyTraceStatusToSystemEventStatus(event: SkyTraceEvent): SystemEventStatus {
+  if (event.status === "resolved" || event.status === "acknowledged") return "Success";
+  if (event.status === "escalated" || event.severity === "critical") return "Failed";
+  if (event.severity === "warn") return "Warning";
+  return "Pending";
+}
+
+function mapSkyTraceSeverityToSystemEventPriority(event: SkyTraceEvent): SystemEventPriority {
+  if (event.severity === "critical") return "Critical";
+  if (event.severity === "warn") return "High";
+  return event.requiresApproval ? "High" : "Normal";
+}
+
+function readSkyTraceEventNote(event: SkyTraceEvent) {
+  if (typeof event.payload.message === "string") return event.payload.message;
+  if (typeof event.payload.summary === "string") return event.payload.summary;
+  return `${event.type} emitted for ${event.missionId}.`;
 }
 
 function asRecord(value: unknown): Record<string, unknown> {

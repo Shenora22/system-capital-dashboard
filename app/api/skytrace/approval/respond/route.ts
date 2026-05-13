@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { respondToSkyTraceApproval, validateSkyTraceApprovalRespond } from "@/lib/skytrace-workflow";
+import { respondToSkyTraceApproval, validateSkyTraceApprovalRespond } from "@/lib/skytrace-api";
 
 export const dynamic = "force-dynamic";
 

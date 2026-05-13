@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { submitSkyTracePreflight, validateSkyTracePreflightSubmit } from "@/lib/skytrace-workflow";
+import { submitSkyTracePreflight, validateSkyTracePreflightSubmit } from "@/lib/skytrace-api";
 
 export const dynamic = "force-dynamic";
 

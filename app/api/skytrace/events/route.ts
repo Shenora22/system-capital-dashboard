@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { normalizeSkyTraceLocalEvent, validateSkyTraceLocalEvent } from "@/lib/skytrace-workflow";
+import { normalizeSkyTraceLocalEvent, validateSkyTraceLocalEvent } from "@/lib/skytrace-api";
 
 export const dynamic = "force-dynamic";
 

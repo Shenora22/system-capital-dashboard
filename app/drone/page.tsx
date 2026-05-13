@@ -538,7 +538,7 @@ export default function DronePage() {
                 AI Mission Control for Autonomous Drone Operations
               </h1>
               <p className="mt-4 max-w-2xl text-base leading-7 text-slate-300">
-                Run fleets. Detect issues. Automate decisions in real time.
+                Run fleets. Detect issues. Automate decisions in real time. SkyTrace remains demo-safe while its mission events preview the shared System Events observability contract.
               </p>
             </div>
             <div className="rounded-2xl border border-white/10 bg-slate-950/70 p-4 text-sm text-slate-300">
@@ -547,6 +547,9 @@ export default function DronePage() {
               <div>{snapshot.operatingArea}</div>
               <div className="mt-2 text-xs text-cyan-200">
                 {isLoading ? "Syncing fleet API…" : `Updated ${formatTime(snapshot.generatedAt)}`}
+              </div>
+              <div className="mt-2 text-xs text-slate-400">
+                System Events adapter: local preview only · no production webhook commands
               </div>
             </div>
           </div>

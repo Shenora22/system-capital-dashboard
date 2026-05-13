@@ -91,6 +91,7 @@ const navItems = [
   { label: "Agents", href: "/agents" },
   { label: "Automation", href: "/automation" },
   { label: "Signals", href: "/signals" },
+  { label: "SkyTrace", href: "/drone" },
   { label: "Deployment", href: "/deployment" },
   { label: "Prompts", href: "/prompts" },
   { label: "Brand Kit", href: "/brand-kit" },
@@ -104,6 +105,7 @@ const moduleDefinitions = [
   { title: "Workflow Architecture", href: "/automation", key: "automation", detail: "n8n workflow state, runbooks, and SLA controls." },
   { title: "Workflow Governance", href: "/system-capital-os#workflow-governance", key: "governance", detail: "Production-safe rules for workflow changes, documentation, and read-only-first adapters." },
   { title: "System Event Logs", href: "/system-capital-os#logs", key: "logs", detail: "Development and runtime event ledger prepared for persistent storage." },
+  { title: "SkyTrace Mission Control", href: "/drone", key: "skytrace", detail: "AI mission control for autonomous drone operations, mapped into the shared System Events observability model." },
   { title: "Signal Engine", href: "/signals", key: "signals", detail: "Macro, risk, liquidity, and operational signal board." },
   { title: "Deployment Status", href: "/deployment", key: "deployment", detail: "Release surfaces, environment readiness, and blockers." },
   { title: "Payments", href: "/system-capital-os#payments", key: "payments", detail: "Read-only Stripe/payment routing preparation and manual review notes." },
@@ -218,6 +220,7 @@ export default function SystemCapitalDashboard() {
       brand: "Assets live",
       command: `${metrics.totalLogs} events`,
       logs: `${systemEventMetrics.total} events`,
+      skytrace: "Mission workflow live",
     };
 
     return { ...module, metric: metricByKey[module.key] || "Open" };

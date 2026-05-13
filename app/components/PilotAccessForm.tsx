@@ -9,7 +9,8 @@ type PilotAccessFormState = {
   website: string;
   bottleneck: string;
   leadProcess: string;
-  monthlyLeadVolume: string;
+  monthlyLeads: string;
+  teamSize: string;
 };
 
 const initialFormState: PilotAccessFormState = {
@@ -19,7 +20,8 @@ const initialFormState: PilotAccessFormState = {
   website: "",
   bottleneck: "",
   leadProcess: "",
-  monthlyLeadVolume: "",
+  monthlyLeads: "",
+  teamSize: "",
 };
 
 const textInputClassName =
@@ -29,19 +31,54 @@ const labelClassName = "text-xs font-medium uppercase tracking-[0.22em] text-sla
 
 export function PilotAccessForm() {
   const [formState, setFormState] = useState<PilotAccessFormState>(initialFormState);
-  const [submitted, setSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submissionStatus, setSubmissionStatus] = useState<"idle" | "success" | "error">("idle");
 
   function updateField(field: keyof PilotAccessFormState, value: string) {
-    setSubmitted(false);
+    setSubmissionStatus("idle");
     setFormState((currentState) => ({
       ...currentState,
       [field]: value,
     }));
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setSubmitted(true);
+    setIsSubmitting(true);
+    setSubmissionStatus("idle");
+
+    try {
+      const response = await fetch(
+        "https://systemcapital.app.n8n.cloud/webhook-test/system-capital-lead",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            name: formState.name,
+            company: formState.company,
+            email: formState.email,
+            website: formState.website,
+            bottleneck: formState.bottleneck,
+            leadProcess: formState.leadProcess,
+            monthlyLeads: formState.monthlyLeads,
+            teamSize: formState.teamSize,
+          }),
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error("Pilot access webhook request failed");
+      }
+
+      setFormState(initialFormState);
+      setSubmissionStatus("success");
+    } catch {
+      setSubmissionStatus("error");
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -141,10 +178,10 @@ export function PilotAccessForm() {
           Estimated monthly lead volume
           <select
             className={textInputClassName}
-            name="monthlyLeadVolume"
-            onChange={(event) => updateField("monthlyLeadVolume", event.target.value)}
+            name="monthlyLeads"
+            onChange={(event) => updateField("monthlyLeads", event.target.value)}
             required
-            value={formState.monthlyLeadVolume}
+            value={formState.monthlyLeads}
           >
             <option value="">Select range</option>
             <option value="1-25">1–25 leads</option>
@@ -153,23 +190,53 @@ export function PilotAccessForm() {
             <option value="500+">500+ leads</option>
           </select>
         </label>
+
+        <label className={labelClassName}>
+          Team size
+          <select
+            className={textInputClassName}
+            name="teamSize"
+            onChange={(event) => updateField("teamSize", event.target.value)}
+            required
+            value={formState.teamSize}
+          >
+            <option value="">Select range</option>
+            <option value="1-5">1–5 people</option>
+            <option value="6-15">6–15 people</option>
+            <option value="16-50">16–50 people</option>
+            <option value="51+">51+ people</option>
+          </select>
+        </label>
       </div>
 
       <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-xs leading-5 text-slate-500">
-          This lightweight intake is frontend-only for now. Backend routing can be connected when the pilot workflow is ready.
+          This lightweight intake routes directly into System Capital operations for review.
         </p>
         <button
-          className="rounded-2xl bg-cyan-100 px-6 py-3 text-sm font-semibold text-slate-950 shadow-[0_0_35px_rgba(165,243,252,0.2)] transition hover:-translate-y-0.5 hover:bg-white focus:outline-none focus:ring-2 focus:ring-cyan-200/60"
+          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-cyan-100 px-6 py-3 text-sm font-semibold text-slate-950 shadow-[0_0_35px_rgba(165,243,252,0.2)] transition hover:-translate-y-0.5 hover:bg-white focus:outline-none focus:ring-2 focus:ring-cyan-200/60 disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:translate-y-0 disabled:hover:bg-cyan-100"
+          disabled={isSubmitting}
           type="submit"
         >
-          Request Pilot Access
+          {isSubmitting ? (
+            <span
+              aria-hidden="true"
+              className="h-4 w-4 animate-spin rounded-full border-2 border-slate-950/30 border-t-slate-950"
+            />
+          ) : null}
+          {isSubmitting ? "Submitting..." : "Request Pilot Access"}
         </button>
       </div>
 
-      {submitted ? (
+      {submissionStatus === "success" ? (
         <p className="mt-5 rounded-2xl border border-emerald-300/20 bg-emerald-300/10 px-4 py-3 text-sm text-emerald-100">
-          Pilot request captured locally. System Capital can connect this intake to routing, CRM, or alerting infrastructure next.
+          Pilot request received. System Capital will review your operational workflow and follow up shortly.
+        </p>
+      ) : null}
+
+      {submissionStatus === "error" ? (
+        <p className="mt-5 rounded-2xl border border-rose-300/20 bg-rose-300/10 px-4 py-3 text-sm text-rose-100">
+          Submission failed. Please try again.
         </p>
       ) : null}
     </form>

@@ -9,6 +9,21 @@ import {
   type DroneMissionSnapshot,
   type DroneRecommendation,
 } from "@/lib/drone-mission";
+import {
+  createSkyTraceEvent,
+  evaluateTelemetryThresholds,
+  generateMissionSummary,
+  initialPreflightChecklist,
+  runPreflightChecklist,
+  skyTraceMissionId,
+  skyTraceOperator,
+  type ApprovalState,
+  type MissionLifecycleStatus,
+  type MissionPhase,
+  type PreflightChecklistItem,
+  type SkyTraceEvent,
+  type SkyTraceEventSeverity,
+} from "@/lib/skytrace-workflow";
 
 type ActionLog = {
   id: string;
@@ -26,6 +41,28 @@ type ActionResponse = {
 };
 
 const missionFallback = getDroneMissionSnapshot();
+const missionDurationLimitMinutes = 45;
+
+const workflowPhaseLabels: Record<MissionPhase, string> = {
+  PRE_MISSION: "Pre-mission",
+  ACTIVE_MISSION: "Active mission",
+  POST_MISSION: "Post-mission",
+};
+
+const approvalStyles: Record<ApprovalState, string> = {
+  PENDING_APPROVAL: "border-amber-300/45 bg-amber-300/10 text-amber-100",
+  APPROVED: "border-emerald-300/45 bg-emerald-300/10 text-emerald-100",
+  DENIED: "border-red-300/45 bg-red-400/10 text-red-100",
+  EXECUTED: "border-cyan-300/45 bg-cyan-300/10 text-cyan-100",
+  BLOCKED: "border-red-400/60 bg-red-500/15 text-red-100",
+  ESCALATED: "border-fuchsia-300/45 bg-fuchsia-300/10 text-fuchsia-100",
+};
+
+const eventSeverityStyles: Record<SkyTraceEventSeverity, string> = {
+  info: "border-cyan-300/25 bg-cyan-300/10 text-cyan-100",
+  warn: "border-amber-300/45 bg-amber-300/10 text-amber-100",
+  critical: "border-red-400/60 bg-red-500/15 text-red-100",
+};
 
 const severityStyles: Record<DroneAlert["severity"], string> = {
   critical: "border-red-400/60 bg-red-500/15 text-red-100",
@@ -106,6 +143,14 @@ export default function DronePage() {
   ]);
   const [isLoading, setIsLoading] = useState(true);
   const [pendingActionId, setPendingActionId] = useState<string | null>(null);
+  const [missionPhase, setMissionPhase] = useState<MissionPhase>("PRE_MISSION");
+  const [missionStatus, setMissionStatus] = useState<MissionLifecycleStatus>("PREFLIGHT");
+  const [approvalState, setApprovalState] = useState<ApprovalState>("PENDING_APPROVAL");
+  const [preflightChecklist, setPreflightChecklist] = useState<PreflightChecklistItem[]>(initialPreflightChecklist);
+  const [skyTraceEvents, setSkyTraceEvents] = useState<SkyTraceEvent[]>([]);
+  const [missionStartedAt, setMissionStartedAt] = useState<string | null>(null);
+  const [missionClosedAt, setMissionClosedAt] = useState<string | null>(null);
+  const [missionSummary, setMissionSummary] = useState("");
 
   useEffect(() => {
     let isMounted = true;
@@ -154,6 +199,301 @@ export default function DronePage() {
   const averageSignal = Math.round(
     snapshot.fleet.reduce((total, drone) => total + drone.signalPct, 0) / snapshot.fleet.length,
   );
+  const openCriticalEvents = skyTraceEvents.filter(
+    (event) => event.severity === "critical" && event.status !== "resolved",
+  );
+  const reportReadyEvents = skyTraceEvents.slice(0, 12);
+
+  function appendSkyTraceEvents(events: SkyTraceEvent[]) {
+    setSkyTraceEvents((current) => {
+      const seen = new Set(current.map((event) => event.eventId));
+      const nextEvents = events.filter((event) => !seen.has(event.eventId));
+      return [...nextEvents, ...current].sort(
+        (left, right) => new Date(right.timestamp).getTime() - new Date(left.timestamp).getTime(),
+      );
+    });
+  }
+
+  function logWorkflowMessage(message: string, createdAt = new Date().toISOString()) {
+    setActionLogs((current) => [
+      {
+        id: `workflow-${Date.now()}`,
+        message,
+        createdAt,
+      },
+      ...current.slice(0, 5),
+    ]);
+  }
+
+  function triggerPreflight() {
+    const timestamp = new Date().toISOString();
+    const result = runPreflightChecklist(skyTraceMissionId, preflightChecklist, timestamp);
+    setApprovalState(result.approvalState);
+    setMissionStatus(result.passed ? "PENDING_APPROVAL" : "BLOCKED");
+    appendSkyTraceEvents([
+      result.event,
+      ...(result.passed
+        ? [
+            createSkyTraceEvent({
+              eventId: `${skyTraceMissionId}-mission-start-approval-requested`,
+              missionId: skyTraceMissionId,
+              timestamp,
+              source: "system",
+              type: "approval_requested",
+              severity: "info",
+              payload: { action: "mission_start", message: "Human GO / NO-GO approval requested." },
+              status: "open",
+              requiresApproval: true,
+            }),
+          ]
+        : []),
+    ]);
+    logWorkflowMessage(result.passed ? "Preflight passed. GO / NO-GO approval requested." : "Preflight failed. Mission start is blocked.", timestamp);
+  }
+
+  function togglePreflightFailure() {
+    setPreflightChecklist((current) =>
+      current.map((item) =>
+        item.id === "geofence"
+          ? {
+              ...item,
+              passed: !item.passed,
+              detail: item.passed
+                ? "Demo failure injected: geofence route is missing operator signoff."
+                : "Demo airspace perimeter loaded in review-only mode.",
+            }
+          : item,
+      ),
+    );
+    setMissionStatus("PREFLIGHT");
+    setApprovalState("PENDING_APPROVAL");
+  }
+
+  function approveMissionStart() {
+    if (missionStatus === "BLOCKED") return;
+
+    const timestamp = new Date().toISOString();
+    setMissionPhase("ACTIVE_MISSION");
+    setMissionStatus("ACTIVE");
+    setApprovalState("APPROVED");
+    setMissionStartedAt(timestamp);
+    appendSkyTraceEvents([
+      createSkyTraceEvent({
+        eventId: `${skyTraceMissionId}-approval-start`,
+        missionId: skyTraceMissionId,
+        timestamp,
+        source: "operator",
+        type: "approval_granted",
+        severity: "info",
+        payload: { action: "mission_start", decision: "GO", message: "Operator approved mission start." },
+        status: "resolved",
+        requiresApproval: false,
+        approvedBy: skyTraceOperator,
+        approvedAt: timestamp,
+      }),
+      createSkyTraceEvent({
+        eventId: `${skyTraceMissionId}-mission-start`,
+        missionId: skyTraceMissionId,
+        timestamp,
+        source: "system",
+        type: "mission_start",
+        severity: "info",
+        payload: { message: "Mission started in simulated review mode. Telemetry loop active." },
+        status: "acknowledged",
+        requiresApproval: false,
+        approvedBy: skyTraceOperator,
+        approvedAt: timestamp,
+      }),
+    ]);
+    logWorkflowMessage("Operator approved GO. Simulated mission started; telemetry checks are active.", timestamp);
+  }
+
+  function denyMissionStart() {
+    const timestamp = new Date().toISOString();
+    setMissionStatus("BLOCKED");
+    setApprovalState("DENIED");
+    appendSkyTraceEvents([
+      createSkyTraceEvent({
+        eventId: `${skyTraceMissionId}-approval-denied-start`,
+        missionId: skyTraceMissionId,
+        timestamp,
+        source: "operator",
+        type: "approval_denied",
+        severity: "critical",
+        payload: { action: "mission_start", decision: "NO-GO", message: "Operator denied mission start." },
+        status: "resolved",
+        requiresApproval: false,
+        approvedBy: skyTraceOperator,
+        approvedAt: timestamp,
+      }),
+    ]);
+    logWorkflowMessage("Operator selected NO-GO. Mission start blocked.", timestamp);
+  }
+
+  function continueAfterCriticalIncident() {
+    const timestamp = new Date().toISOString();
+    setApprovalState("EXECUTED");
+    appendSkyTraceEvents([
+      createSkyTraceEvent({
+        eventId: `${skyTraceMissionId}-continue-${Date.now()}`,
+        missionId: skyTraceMissionId,
+        timestamp,
+        source: "operator",
+        type: "approval_granted",
+        severity: "info",
+        payload: { action: "continue", openCriticalEvents: openCriticalEvents.length, message: "Operator approved continue after critical incident review." },
+        status: "resolved",
+        requiresApproval: false,
+        approvedBy: skyTraceOperator,
+        approvedAt: timestamp,
+      }),
+    ]);
+    logWorkflowMessage("Continue approved after critical incident review. No drone command was sent.", timestamp);
+  }
+
+  function delegateIncident() {
+    const timestamp = new Date().toISOString();
+    setApprovalState("ESCALATED");
+    appendSkyTraceEvents([
+      createSkyTraceEvent({
+        eventId: `${skyTraceMissionId}-delegate-${Date.now()}`,
+        missionId: skyTraceMissionId,
+        timestamp,
+        source: "operator",
+        type: "operator_override",
+        severity: "warn",
+        payload: { action: "delegate", openCriticalEvents: openCriticalEvents.length, message: "Operator delegated critical incident to field team for review." },
+        status: "escalated",
+        requiresApproval: false,
+        approvedBy: skyTraceOperator,
+        approvedAt: timestamp,
+      }),
+    ]);
+    logWorkflowMessage("Incident delegated to field team. No live drone command was sent.", timestamp);
+  }
+
+  function abortMission() {
+    const timestamp = new Date().toISOString();
+    setMissionPhase("POST_MISSION");
+    setMissionStatus("ABORTED");
+    setApprovalState("ESCALATED");
+    setMissionClosedAt(timestamp);
+    appendSkyTraceEvents([
+      createSkyTraceEvent({
+        eventId: `${skyTraceMissionId}-operator-abort`,
+        missionId: skyTraceMissionId,
+        timestamp,
+        source: "operator",
+        type: "operator_override",
+        severity: "critical",
+        payload: { action: "abort", message: "Operator aborted the simulated mission; escalation record created." },
+        status: "escalated",
+        requiresApproval: false,
+        approvedBy: skyTraceOperator,
+        approvedAt: timestamp,
+      }),
+      createSkyTraceEvent({
+        eventId: `${skyTraceMissionId}-mission-end-abort`,
+        missionId: skyTraceMissionId,
+        timestamp,
+        source: "system",
+        type: "mission_end",
+        severity: "warn",
+        payload: { outcome: "aborted", message: "Mission closed after operator abort." },
+        status: "acknowledged",
+        requiresApproval: false,
+      }),
+    ]);
+    logWorkflowMessage("Mission aborted and moved to post-mission review. Simulated only.", timestamp);
+  }
+
+  function resolveIncident() {
+    const timestamp = new Date().toISOString();
+    setApprovalState("EXECUTED");
+    setSkyTraceEvents((current) =>
+      current.map((event) =>
+        event.severity === "critical" && event.status !== "resolved"
+          ? { ...event, status: "resolved", approvedBy: skyTraceOperator, approvedAt: timestamp }
+          : event,
+      ),
+    );
+    appendSkyTraceEvents([
+      createSkyTraceEvent({
+        eventId: `${skyTraceMissionId}-incident-resolved-${Date.now()}`,
+        missionId: skyTraceMissionId,
+        timestamp,
+        source: "operator",
+        type: "incident_resolved",
+        severity: "info",
+        payload: { resolvedEvents: openCriticalEvents.length, message: "Operator resolved open critical incident records." },
+        status: "resolved",
+        requiresApproval: false,
+        approvedBy: skyTraceOperator,
+        approvedAt: timestamp,
+      }),
+    ]);
+    logWorkflowMessage("Open critical incident records marked resolved.", timestamp);
+  }
+
+  function closeMissionAndSummarize() {
+    const timestamp = new Date().toISOString();
+    const summary = generateMissionSummary(skyTraceEvents, skyTraceMissionId);
+    setMissionPhase("POST_MISSION");
+    setMissionStatus("CLOSED");
+    setApprovalState("EXECUTED");
+    setMissionClosedAt(timestamp);
+    setMissionSummary(summary);
+    appendSkyTraceEvents([
+      createSkyTraceEvent({
+        eventId: `${skyTraceMissionId}-mission-end`,
+        missionId: skyTraceMissionId,
+        timestamp,
+        source: "system",
+        type: "mission_end",
+        severity: "info",
+        payload: { outcome: "closed", message: "Mission closed by operator." },
+        status: "resolved",
+        requiresApproval: false,
+      }),
+      createSkyTraceEvent({
+        eventId: `${skyTraceMissionId}-ai-summary`,
+        missionId: skyTraceMissionId,
+        timestamp,
+        source: "ai",
+        type: "ai_summary_generated",
+        severity: "info",
+        payload: { summary },
+        status: "resolved",
+        requiresApproval: false,
+      }),
+    ]);
+    logWorkflowMessage("AI mission summary generated and report-ready log stored locally.", timestamp);
+  }
+
+  useEffect(() => {
+    if (missionPhase !== "ACTIVE_MISSION" || missionStatus !== "ACTIVE") return;
+
+    const intervalId = window.setInterval(() => {
+      setSkyTraceEvents((current) => {
+        const existingEventIds = new Set(current.map((event) => event.eventId));
+        const thresholdEvents = evaluateTelemetryThresholds(snapshot.fleet, {
+          missionId: skyTraceMissionId,
+          now: new Date().toISOString(),
+          missionStartedAt: missionStartedAt ?? undefined,
+          missionDurationLimitMinutes,
+          existingEventIds,
+        });
+
+        if (thresholdEvents.length === 0) return current;
+
+        return [...thresholdEvents, ...current].sort(
+          (left, right) => new Date(right.timestamp).getTime() - new Date(left.timestamp).getTime(),
+        );
+      });
+    }, 2200);
+
+    return () => window.clearInterval(intervalId);
+  }, [missionPhase, missionStartedAt, missionStatus, snapshot.fleet]);
 
   async function stageAction(recommendation: DroneRecommendation) {
     setPendingActionId(recommendation.id);
@@ -225,6 +565,117 @@ export default function DronePage() {
               <p className="mt-1 text-sm text-slate-400">{helper}</p>
             </div>
           ))}
+        </section>
+
+        <section data-pitch-capture="workflow" className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+          <Panel title="Mission workflow" helper="Sellable SkyTrace workflow: preflight, approvals, incident handling, and post-mission report log." captureName="mission-workflow">
+            <div className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
+              <div className="space-y-4">
+                <div className="rounded-2xl border border-white/10 bg-slate-950/70 p-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="rounded-full bg-cyan-300/15 px-3 py-1 text-xs font-black uppercase tracking-[0.18em] text-cyan-100">
+                      {workflowPhaseLabels[missionPhase]}
+                    </span>
+                    <span className={`rounded-full border px-3 py-1 text-xs font-black uppercase tracking-[0.16em] ${approvalStyles[approvalState]}`}>
+                      {approvalState.replaceAll("_", " ")}
+                    </span>
+                  </div>
+                  <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                    <Metric label="Mission" value={missionStatus.toLowerCase()} />
+                    <Metric label="Incidents" value={`${openCriticalEvents.length} open`} />
+                    <Metric label="Started" value={missionStartedAt ? formatTime(missionStartedAt) : "not started"} />
+                    <Metric label="Closed" value={missionClosedAt ? formatTime(missionClosedAt) : "open"} />
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-white/10 bg-slate-950/65 p-4">
+                  <h3 className="text-sm font-black uppercase tracking-[0.18em] text-slate-300">Preflight checklist</h3>
+                  <div className="mt-3 space-y-2">
+                    {preflightChecklist.map((item) => (
+                      <div key={item.id} className="rounded-xl border border-white/10 bg-white/[0.035] p-3 text-sm">
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="font-bold text-white">{item.label}</span>
+                          <span className={item.passed ? "text-emerald-200" : "text-red-200"}>{item.passed ? "PASS" : "FAIL"}</span>
+                        </div>
+                        <p className="mt-1 text-xs leading-5 text-slate-400">{item.detail}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  <WorkflowButton label="Run preflight" onClick={triggerPreflight} />
+                  <WorkflowButton label="Approve GO" onClick={approveMissionStart} disabled={missionStatus !== "PENDING_APPROVAL"} />
+                  <WorkflowButton label="Deny NO-GO" onClick={denyMissionStart} tone="danger" />
+                  <WorkflowButton label="Continue incident" onClick={continueAfterCriticalIncident} disabled={openCriticalEvents.length === 0} />
+                  <WorkflowButton label="Abort mission" onClick={abortMission} tone="danger" disabled={missionPhase !== "ACTIVE_MISSION"} />
+                  <WorkflowButton label="Delegate" onClick={delegateIncident} disabled={openCriticalEvents.length === 0} />
+                  <WorkflowButton label="Resolve incident" onClick={resolveIncident} disabled={openCriticalEvents.length === 0} />
+                  <button
+                    onClick={togglePreflightFailure}
+                    className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-black text-slate-200 transition hover:border-amber-200/40 hover:text-amber-100 sm:col-span-1"
+                  >
+                    Toggle preflight fail
+                  </button>
+                  <button
+                    onClick={closeMissionAndSummarize}
+                    className="rounded-xl border border-cyan-200/20 bg-cyan-300 px-3 py-2 text-xs font-black text-slate-950 transition hover:bg-cyan-200 sm:col-span-2"
+                  >
+                    Generate AI summary
+                  </button>
+                </div>
+
+                <div className="rounded-2xl border border-white/10 bg-slate-950/65 p-4">
+                  <h3 className="text-sm font-black uppercase tracking-[0.18em] text-slate-300">Operational rules</h3>
+                  <div className="mt-3 grid gap-2 text-xs leading-5 text-slate-400 sm:grid-cols-2">
+                    <div>Battery &lt;20% logs WARN; &lt;10% requires approval.</div>
+                    <div>RSSI &lt;-85 dBm logs WARN.</div>
+                    <div>No ping &gt;5s opens a CRITICAL incident.</div>
+                    <div>Geofence breach requires operator approval.</div>
+                    <div>Speed anomaly auto-logs WARN.</div>
+                    <div>Preflight fail blocks start.</div>
+                  </div>
+                </div>
+
+                {missionSummary && (
+                  <div className="rounded-2xl border border-emerald-300/25 bg-emerald-300/10 p-4 text-sm leading-6 text-emerald-50">
+                    <div className="text-xs font-black uppercase tracking-[0.18em] text-emerald-200">AI mission summary</div>
+                    <p className="mt-2">{missionSummary}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </Panel>
+
+          <Panel title="System event timeline" helper="Local mock event log for report-ready incident history." captureName="event-log">
+            <div className="max-h-[560px] space-y-3 overflow-auto pr-1">
+              {reportReadyEvents.length === 0 ? (
+                <div className="rounded-2xl border border-white/10 bg-slate-950/65 p-4 text-sm text-slate-400">
+                  Run preflight to seed the SkyTrace event log. All events are local mock records.
+                </div>
+              ) : (
+                reportReadyEvents.map((event) => (
+                  <article key={event.eventId} className={`rounded-2xl border p-4 ${eventSeverityStyles[event.severity]}`}>
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="text-xs font-black uppercase tracking-[0.16em]">{event.type.replaceAll("_", " ")}</span>
+                      <span className="rounded-full bg-black/25 px-2 py-1 text-xs font-bold">{event.status}</span>
+                    </div>
+                    <div className="mt-2 text-sm leading-6 text-slate-100">
+                      {typeof event.payload.message === "string" ? event.payload.message : typeof event.payload.summary === "string" ? event.payload.summary : event.eventId}
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-2 text-xs font-bold text-slate-300">
+                      <span>{formatTime(event.timestamp)}</span>
+                      <span>• {event.source}</span>
+                      <span>• approval {event.requiresApproval ? "required" : "not required"}</span>
+                      {event.approvedBy && <span>• {event.approvedBy}</span>}
+                    </div>
+                  </article>
+                ))
+              )}
+            </div>
+          </Panel>
         </section>
 
         <section className="grid gap-6 xl:grid-cols-[1.45fr_0.9fr]">
@@ -422,6 +873,33 @@ export default function DronePage() {
         </Panel>
       </section>
     </main>
+  );
+}
+
+function WorkflowButton({
+  label,
+  onClick,
+  disabled = false,
+  tone = "primary",
+}: {
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+  tone?: "primary" | "danger";
+}) {
+  const toneClass =
+    tone === "danger"
+      ? "border-red-300/25 bg-red-400/15 text-red-100 hover:border-red-200/50"
+      : "border-cyan-200/20 bg-white/[0.06] text-cyan-100 hover:border-cyan-200/50";
+
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={`rounded-xl border px-3 py-2 text-xs font-black transition disabled:cursor-not-allowed disabled:opacity-40 ${toneClass}`}
+    >
+      {label}
+    </button>
   );
 }
 

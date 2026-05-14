@@ -28,6 +28,7 @@ const textInputClassName =
   "mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/55 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-300/50 focus:bg-slate-950/75 focus:ring-2 focus:ring-cyan-300/10";
 
 const labelClassName = "text-xs font-medium uppercase tracking-[0.22em] text-slate-400";
+const pilotAccessWebhookUrl = "https://systemcapital.app.n8n.cloud/webhook/system-capital-lead";
 
 export function PilotAccessForm() {
   const [formState, setFormState] = useState<PilotAccessFormState>(initialFormState);
@@ -49,7 +50,7 @@ export function PilotAccessForm() {
 
     try {
       const response = await fetch(
-        "https://systemcapital.app.n8n.cloud/webhook-test/system-capital-lead",
+        pilotAccessWebhookUrl,
         {
           method: "POST",
           headers: {

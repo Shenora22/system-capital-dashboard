@@ -107,14 +107,30 @@ export const initialPreflightChecklist: PreflightChecklistItem[] = [
   },
 ];
 
+function isLegacyPreflightEventId(
+  input: Omit<SkyTraceEvent, "eventId"> & { eventId?: string },
+) {
+  if (!input.eventId) return false;
+
+  return (
+    (input.type === "preflight_check" &&
+      (input.eventId === `${input.missionId}-preflight-pass` ||
+        input.eventId === `${input.missionId}-preflight-fail`)) ||
+    (input.type === "approval_requested" &&
+      input.payload.action === "mission_start" &&
+      input.eventId === `${input.missionId}-mission-start-approval-requested`)
+  );
+}
+
 export function createSkyTraceEvent(
   input: Omit<SkyTraceEvent, "eventId"> & { eventId?: string },
 ): SkyTraceEvent {
   return {
     ...input,
     eventId:
-      input.eventId ??
-      `${input.missionId}-${input.type}-${Date.parse(input.timestamp)}-${Math.random().toString(36).slice(2, 7)}`,
+      input.eventId && !isLegacyPreflightEventId(input)
+        ? input.eventId
+        : `${input.missionId}-${input.type}-${Date.parse(input.timestamp)}-${Math.random().toString(36).slice(2, 7)}`,
   };
 }
 

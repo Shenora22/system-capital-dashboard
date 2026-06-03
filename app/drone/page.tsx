@@ -113,6 +113,7 @@ const priorityStyles: Record<DroneRecommendation["priority"], string> = {
 
 function formatTime(value: string) {
   return new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
     hour: "numeric",
     minute: "2-digit",
     second: "2-digit",
@@ -203,6 +204,11 @@ export default function DronePage() {
   const [missionStartedAt, setMissionStartedAt] = useState<string | null>(null);
   const [missionClosedAt, setMissionClosedAt] = useState<string | null>(null);
   const [missionSummary, setMissionSummary] = useState("");
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -255,6 +261,11 @@ export default function DronePage() {
     (event) => event.severity === "critical" && event.status !== "resolved",
   );
   const reportReadyEvents = skyTraceEvents.slice(0, 12);
+  const visibleReportReadyEvents = mounted ? reportReadyEvents : [];
+
+  function renderMountedTime(value: string, fallback = "pending sync") {
+    return mounted ? formatTime(value) : fallback;
+  }
 
   function appendSkyTraceEvents(events: SkyTraceEvent[]) {
     setSkyTraceEvents((current) => {
@@ -657,7 +668,7 @@ export default function DronePage() {
               <div>{snapshot.commandPost}</div>
               <div>{snapshot.operatingArea}</div>
               <div className="mt-2 text-xs text-cyan-200">
-                {isLoading ? "Syncing fleet API…" : `Updated ${formatTime(snapshot.generatedAt)}`}
+                {isLoading || !mounted ? "Syncing fleet API…" : `Updated ${renderMountedTime(snapshot.generatedAt)}`}
               </div>
               <div className="mt-2 text-xs text-slate-400">
                 System Events adapter: local preview only · no production webhook commands
@@ -697,8 +708,8 @@ export default function DronePage() {
                   <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
                     <Metric label="Mission" value={missionStatus.toLowerCase()} />
                     <Metric label="Incidents" value={`${openCriticalEvents.length} open`} />
-                    <Metric label="Started" value={missionStartedAt ? formatTime(missionStartedAt) : "not started"} />
-                    <Metric label="Closed" value={missionClosedAt ? formatTime(missionClosedAt) : "open"} />
+                    <Metric label="Started" value={missionStartedAt ? renderMountedTime(missionStartedAt) : "not started"} />
+                    <Metric label="Closed" value={missionClosedAt ? renderMountedTime(missionClosedAt) : "open"} />
                   </div>
                 </div>
 
@@ -781,12 +792,12 @@ export default function DronePage() {
 
           <Panel title="System event timeline" helper="Local mock event log for report-ready incident history." captureName="event-log">
             <div className="max-h-[560px] space-y-3 overflow-auto pr-1">
-              {reportReadyEvents.length === 0 ? (
+              {visibleReportReadyEvents.length === 0 ? (
                 <div className="rounded-2xl border border-white/10 bg-slate-950/65 p-4 text-sm text-slate-400">
                   Run preflight to seed the SkyTrace event log. All events are local mock records.
                 </div>
               ) : (
-                reportReadyEvents.map((event) => (
+                visibleReportReadyEvents.map((event) => (
                   <article key={event.eventId} className={`rounded-2xl border p-4 ${eventSeverityStyles[event.severity]}`}>
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <span className="text-xs font-black uppercase tracking-[0.16em]">{event.type.replaceAll("_", " ")}</span>
@@ -796,7 +807,7 @@ export default function DronePage() {
                       {typeof event.payload.message === "string" ? event.payload.message : typeof event.payload.summary === "string" ? event.payload.summary : event.eventId}
                     </div>
                     <div className="mt-3 flex flex-wrap gap-2 text-xs font-bold text-slate-300">
-                      <span>{formatTime(event.timestamp)}</span>
+                      <span>{renderMountedTime(event.timestamp)}</span>
                       <span>• {event.source}</span>
                       <span>• approval {event.requiresApproval ? "required" : "not required"}</span>
                       {event.approvedBy && <span>• {event.approvedBy}</span>}
@@ -890,7 +901,7 @@ export default function DronePage() {
                     <Metric label="Altitude" value={`${selectedDrone.altitudeFt} ft`} />
                     <Metric label="Speed" value={`${selectedDrone.speedMph} mph`} />
                     <Metric label="Payload" value={selectedDrone.payload} />
-                    <Metric label="Last ping" value={formatTime(selectedDrone.lastPing)} />
+                    <Metric label="Last ping" value={renderMountedTime(selectedDrone.lastPing)} />
                   </div>
                   <HealthBar label="Battery" value={selectedDrone.batteryPct} />
                   <HealthBar label="Signal" value={selectedDrone.signalPct} />
@@ -903,7 +914,7 @@ export default function DronePage() {
               <div className="mt-4 space-y-3">
                 {actionLogs.map((log) => (
                   <div key={log.id} className="rounded-2xl border border-white/10 bg-slate-950/70 p-3 text-sm text-slate-300">
-                    <div className="text-xs font-bold text-cyan-200">{formatTime(log.createdAt)}</div>
+                    <div className="text-xs font-bold text-cyan-200">{renderMountedTime(log.createdAt)}</div>
                     <div>{log.message}</div>
                   </div>
                 ))}
@@ -957,7 +968,7 @@ export default function DronePage() {
                     <h3 className="mt-3 text-lg font-black text-white">{alert.title}</h3>
                     <p className="mt-2 text-sm leading-6 text-slate-200">{alert.detail}</p>
                     <div className="mt-3 text-xs font-bold text-slate-300">
-                      {drone?.name ?? alert.droneId} • {formatTime(alert.createdAt)}
+                      {drone?.name ?? alert.droneId} • {renderMountedTime(alert.createdAt)}
                     </div>
                   </article>
                 );

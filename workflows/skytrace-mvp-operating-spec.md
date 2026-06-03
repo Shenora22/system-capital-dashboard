@@ -13,7 +13,8 @@ SkyTrace currently demonstrates a local/demo workflow for:
 - local threshold evaluation against mock telemetry fields,
 - local incident review actions,
 - local event log generation,
-- preview mapping from SkyTrace events into the shared System Events shape.
+- preview mapping from SkyTrace events into the shared System Events shape,
+- persisted `POST /api/skytrace/events` records when Supabase server persistence and the `skytrace_events` table are configured.
 
 Integrity warnings:
 
@@ -41,7 +42,8 @@ SkyTrace UI (/drone)
 SkyTrace API preview routes (/api/skytrace/*)
   ├─ validate local JSON payloads
   ├─ emit local SkyTrace event objects
-  └─ preview SystemEvent mapping without persistence or webhook dispatch
+  ├─ persist /api/skytrace/events records through Supabase when configured
+  └─ preview SystemEvent mapping without webhook dispatch
 ```
 
 Status of major architectural areas:
@@ -53,10 +55,10 @@ Status of major architectural areas:
 | Friendly route alias | IMPLEMENTED | `/skytrace` redirects to `/drone`; `/drone` remains canonical. |
 | Fleet data source | MOCKED/LOCAL ONLY | `/api/drone/fleet` returns `getDroneMissionSnapshot()` backed by local fixtures. |
 | Mission workflow engine | PARTIALLY IMPLEMENTED | Local TypeScript helpers and UI handlers model preflight, approval, active mission, incident handling, abort, close, and summary generation. |
-| System Events integration | PARTIALLY IMPLEMENTED | SkyTrace events can be mapped into `SystemEvent`; no write to a shared ledger is implemented. |
+| System Events integration | PARTIALLY IMPLEMENTED | SkyTrace events can be mapped into `SystemEvent`; `/api/skytrace/events` persists the normalized SkyTrace event plus SystemEvent preview when Supabase is configured. |
 | Live telemetry ingestion | NOT IMPLEMENTED | No streaming, device, websocket, MQTT, vendor API, or database telemetry ingestion exists. |
 | Live command dispatch | NOT IMPLEMENTED | Action APIs stage review records only and explicitly do not send drone commands. |
-| Production persistence | NOT IMPLEMENTED | UI events and logs are component state; API responses are stateless. |
+| Production persistence | PARTIALLY IMPLEMENTED | `POST /api/skytrace/events` writes to `skytrace_events`; UI events, logs, preflight, approval, and fleet APIs remain local/stateless. |
 
 ## Implemented Components — PARTIALLY IMPLEMENTED
 
@@ -305,7 +307,36 @@ Validates approval response payloads and returns local events for:
 
 ### `POST /api/skytrace/events` — PARTIALLY IMPLEMENTED
 
-Validates a local SkyTrace event request, normalizes it into a SkyTrace event, and returns a `systemEventPreview` from the adapter. It does not persist the event or send it to n8n.
+Validates a local SkyTrace event request, normalizes it into a SkyTrace event, maps it to a `systemEventPreview`, and persists the normalized event through Supabase into `skytrace_events` when server persistence is configured.
+
+Required minimal table contract:
+
+```sql
+create table if not exists skytrace_events (
+  event_id text primary key,
+  mission_id text not null,
+  event_type text not null,
+  source text not null,
+  severity text not null,
+  status text not null,
+  requires_approval boolean not null default false,
+  approved_by text,
+  approved_at timestamptz,
+  event_timestamp timestamptz not null,
+  payload jsonb not null,
+  system_event_preview jsonb not null,
+  created_at timestamptz not null default now()
+);
+
+alter table skytrace_events enable row level security;
+
+create index if not exists skytrace_events_mission_time_idx
+  on skytrace_events (mission_id, event_timestamp desc);
+```
+
+The route requires `SKYTRACE_INGEST_API_KEY`; callers must send the same value in the `x-skytrace-api-key` header before validation or persistence runs. It also uses `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`, following the existing server-side Supabase seed pattern. If Supabase env vars or the table are missing, validation still runs after ingest authorization and the route returns a persistence-specific error instead of claiming success.
+
+RLS is enabled on `skytrace_events`; no broad public policies are defined. Service-role writes remain available through the server route. This is still not live telemetry ingestion: it only persists explicitly posted SkyTrace event payloads.
 
 ## Architecture Flow Diagrams — PARTIALLY IMPLEMENTED
 
@@ -364,7 +395,7 @@ Hard constraints:
 
 - No real drone control is implemented.
 - No live telemetry ingestion is implemented.
-- No production persistence is implemented.
+- Only `POST /api/skytrace/events` persistence is implemented; UI mission state, preflight responses, approvals, fleet data, and action logs remain local/stateless.
 - No real-world dispatch is implemented.
 - No external command execution is implemented.
 - No production n8n/webhook behavior is changed by SkyTrace.

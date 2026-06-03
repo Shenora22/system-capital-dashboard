@@ -50,6 +50,7 @@ export type SkyTraceApprovalRespondRequest = {
 };
 
 export type SkyTraceLocalEventRequest = {
+  eventId?: string;
   missionId: string;
   type: SkyTraceEventType;
   source: SkyTraceEventSource;
@@ -407,6 +408,10 @@ export function validateSkyTraceLocalEvent(
     payload.status === undefined
       ? undefined
       : readEnum(payload, "status", skyTraceEventStatuses, errors);
+  const eventId =
+    payload.eventId === undefined
+      ? undefined
+      : readString(payload, "eventId", errors);
   const requiresApproval =
     payload.requiresApproval === undefined
       ? undefined
@@ -418,6 +423,7 @@ export function validateSkyTraceLocalEvent(
   }
 
   const data = {
+    eventId,
     missionId: readString(payload, "missionId", errors),
     type:
       readEnum(payload, "type", skyTraceApiEventTypes, errors) ??
@@ -449,6 +455,7 @@ export function normalizeSkyTraceLocalEvent(
   fallbackTimestamp = new Date().toISOString(),
 ): SkyTraceEvent {
   return createSkyTraceEvent({
+    eventId: payload.eventId,
     missionId: payload.missionId,
     timestamp: payload.timestamp ?? fallbackTimestamp,
     source: payload.source,

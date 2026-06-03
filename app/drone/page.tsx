@@ -40,6 +40,40 @@ type ActionResponse = {
   };
 };
 
+type PersistedSkyTraceEventRow = {
+  event_id: string;
+  mission_id: string;
+  event_type: SkyTraceEvent["type"];
+  source: SkyTraceEvent["source"];
+  severity: SkyTraceEvent["severity"];
+  status: SkyTraceEvent["status"];
+  requires_approval: boolean;
+  approved_by: string | null;
+  approved_at: string | null;
+  event_timestamp: string;
+  payload: Record<string, unknown>;
+  system_event_preview: Record<string, unknown>;
+  created_at: string;
+};
+
+type PersistSkyTraceEventResponse =
+  | {
+      ok: true;
+      event: SkyTraceEvent;
+      persistence: {
+        table: string;
+        eventId: string;
+        row: PersistedSkyTraceEventRow;
+      };
+      row?: PersistedSkyTraceEventRow;
+    }
+  | {
+      ok: false;
+      status?: string;
+      message?: string;
+      errors?: string[];
+    };
+
 const missionFallback = getDroneMissionSnapshot();
 const missionDurationLimitMinutes = 45;
 
@@ -79,6 +113,7 @@ const priorityStyles: Record<DroneRecommendation["priority"], string> = {
 
 function formatTime(value: string) {
   return new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
     hour: "numeric",
     minute: "2-digit",
     second: "2-digit",
@@ -131,6 +166,22 @@ function getRouteTrail(drone: DroneFleetUnit) {
   };
 }
 
+function mapPersistedSkyTraceRowToEvent(row: PersistedSkyTraceEventRow): SkyTraceEvent {
+  return {
+    eventId: row.event_id,
+    missionId: row.mission_id,
+    timestamp: row.event_timestamp,
+    source: row.source,
+    type: row.event_type,
+    severity: row.severity,
+    payload: row.payload,
+    status: row.status,
+    requiresApproval: row.requires_approval,
+    approvedBy: row.approved_by ?? undefined,
+    approvedAt: row.approved_at ?? undefined,
+  };
+}
+
 export default function DronePage() {
   const [snapshot, setSnapshot] = useState<DroneMissionSnapshot>(missionFallback);
   const [selectedDroneId, setSelectedDroneId] = useState(missionFallback.fleet[0]?.id ?? "");
@@ -148,9 +199,16 @@ export default function DronePage() {
   const [approvalState, setApprovalState] = useState<ApprovalState>("PENDING_APPROVAL");
   const [preflightChecklist, setPreflightChecklist] = useState<PreflightChecklistItem[]>(initialPreflightChecklist);
   const [skyTraceEvents, setSkyTraceEvents] = useState<SkyTraceEvent[]>([]);
+  const [skyTracePersistenceError, setSkyTracePersistenceError] = useState("");
+  const [isPersistingPreflight, setIsPersistingPreflight] = useState(false);
   const [missionStartedAt, setMissionStartedAt] = useState<string | null>(null);
   const [missionClosedAt, setMissionClosedAt] = useState<string | null>(null);
   const [missionSummary, setMissionSummary] = useState("");
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -203,12 +261,21 @@ export default function DronePage() {
     (event) => event.severity === "critical" && event.status !== "resolved",
   );
   const reportReadyEvents = skyTraceEvents.slice(0, 12);
+  const visibleReportReadyEvents = mounted ? reportReadyEvents : [];
+
+  function renderMountedTime(value: string, fallback = "pending sync") {
+    return mounted ? formatTime(value) : fallback;
+  }
 
   function appendSkyTraceEvents(events: SkyTraceEvent[]) {
     setSkyTraceEvents((current) => {
-      const seen = new Set(current.map((event) => event.eventId));
-      const nextEvents = events.filter((event) => !seen.has(event.eventId));
-      return [...nextEvents, ...current].sort(
+      const eventsById = new Map(current.map((event) => [event.eventId, event]));
+
+      events.forEach((event) => {
+        eventsById.set(event.eventId, event);
+      });
+
+      return Array.from(eventsById.values()).sort(
         (left, right) => new Date(right.timestamp).getTime() - new Date(left.timestamp).getTime(),
       );
     });
@@ -225,12 +292,46 @@ export default function DronePage() {
     ]);
   }
 
-  function triggerPreflight() {
+  async function persistSkyTraceEvents(events: SkyTraceEvent[]) {
+    const persistedEvents: SkyTraceEvent[] = [];
+
+    for (const event of events) {
+      const response = await fetch("/api/skytrace/events", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-skytrace-app-request": "skytrace-ui",
+        },
+        body: JSON.stringify(event),
+        cache: "no-store",
+      });
+      const result = (await response.json().catch(() => null)) as PersistSkyTraceEventResponse | null;
+
+      if (!response.ok || !result?.ok) {
+        const detail =
+          result && !result.ok
+            ? result.message ?? result.errors?.join(" ") ?? result.status
+            : undefined;
+
+        throw new Error(
+          detail
+            ? `SkyTrace persistence failed: ${detail}`
+            : `SkyTrace persistence failed with HTTP ${response.status}.`,
+        );
+      }
+
+      persistedEvents.push(
+        mapPersistedSkyTraceRowToEvent(result.row ?? result.persistence.row),
+      );
+    }
+
+    return persistedEvents;
+  }
+
+  async function triggerPreflight() {
     const timestamp = new Date().toISOString();
     const result = runPreflightChecklist(skyTraceMissionId, preflightChecklist, timestamp);
-    setApprovalState(result.approvalState);
-    setMissionStatus(result.passed ? "PENDING_APPROVAL" : "BLOCKED");
-    appendSkyTraceEvents([
+    const preflightEvents = [
       result.event,
       ...(result.passed
         ? [
@@ -247,8 +348,29 @@ export default function DronePage() {
             }),
           ]
         : []),
-    ]);
-    logWorkflowMessage(result.passed ? "Preflight passed. GO / NO-GO approval requested." : "Preflight failed. Mission start is blocked.", timestamp);
+    ];
+
+    setIsPersistingPreflight(true);
+    setSkyTracePersistenceError("");
+
+    try {
+      const persistedEvents = await persistSkyTraceEvents(preflightEvents);
+
+      setApprovalState(result.approvalState);
+      setMissionStatus(result.passed ? "PENDING_APPROVAL" : "BLOCKED");
+      appendSkyTraceEvents(persistedEvents);
+      logWorkflowMessage(result.passed ? "Preflight passed. GO / NO-GO approval requested." : "Preflight failed. Mission start is blocked.", timestamp);
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "SkyTrace persistence failed before timeline update.";
+
+      setSkyTracePersistenceError(message);
+      logWorkflowMessage(`Preflight persistence failed: ${message}`, timestamp);
+    } finally {
+      setIsPersistingPreflight(false);
+    }
   }
 
   function togglePreflightFailure() {
@@ -523,6 +645,28 @@ export default function DronePage() {
     }
   }
 
+  if (!mounted) {
+    return (
+      <main data-pitch-capture="dashboard" className="min-h-screen overflow-hidden bg-[#04070d] text-slate-100">
+        <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.22),transparent_32%),radial-gradient(circle_at_80%_10%,rgba(249,115,22,0.16),transparent_28%),linear-gradient(180deg,#08111f_0%,#04070d_60%)]" />
+
+        <section className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-5 py-6 sm:px-8 lg:px-10">
+          <header data-pitch-capture="hero" className="rounded-[2rem] border border-cyan-300/15 bg-white/[0.04] p-6 shadow-2xl shadow-cyan-950/30 backdrop-blur">
+            <p className="mb-3 inline-flex rounded-full border border-cyan-300/25 bg-cyan-300/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.32em] text-cyan-200">
+              SkyTrace Mission Control
+            </p>
+            <h1 className="max-w-3xl text-4xl font-black tracking-tight text-white sm:text-5xl">
+              AI Mission Control for Autonomous Drone Operations
+            </h1>
+            <p className="mt-4 max-w-2xl text-base leading-7 text-slate-300">
+              Syncing fleet API...
+            </p>
+          </header>
+        </section>
+      </main>
+    );
+  }
+
   return (
     <main data-pitch-capture="dashboard" className="min-h-screen overflow-hidden bg-[#04070d] text-slate-100">
       <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.22),transparent_32%),radial-gradient(circle_at_80%_10%,rgba(249,115,22,0.16),transparent_28%),linear-gradient(180deg,#08111f_0%,#04070d_60%)]" />
@@ -546,7 +690,7 @@ export default function DronePage() {
               <div>{snapshot.commandPost}</div>
               <div>{snapshot.operatingArea}</div>
               <div className="mt-2 text-xs text-cyan-200">
-                {isLoading ? "Syncing fleet API…" : `Updated ${formatTime(snapshot.generatedAt)}`}
+                {isLoading || !mounted ? "Syncing fleet API…" : `Updated ${renderMountedTime(snapshot.generatedAt)}`}
               </div>
               <div className="mt-2 text-xs text-slate-400">
                 System Events adapter: local preview only · no production webhook commands
@@ -586,8 +730,8 @@ export default function DronePage() {
                   <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
                     <Metric label="Mission" value={missionStatus.toLowerCase()} />
                     <Metric label="Incidents" value={`${openCriticalEvents.length} open`} />
-                    <Metric label="Started" value={missionStartedAt ? formatTime(missionStartedAt) : "not started"} />
-                    <Metric label="Closed" value={missionClosedAt ? formatTime(missionClosedAt) : "open"} />
+                    <Metric label="Started" value={missionStartedAt ? renderMountedTime(missionStartedAt) : "not started"} />
+                    <Metric label="Closed" value={missionClosedAt ? renderMountedTime(missionClosedAt) : "open"} />
                   </div>
                 </div>
 
@@ -609,7 +753,11 @@ export default function DronePage() {
 
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                  <WorkflowButton label="Run preflight" onClick={triggerPreflight} />
+                  <WorkflowButton
+                    label={isPersistingPreflight ? "Persisting..." : "Run preflight"}
+                    onClick={triggerPreflight}
+                    disabled={isPersistingPreflight}
+                  />
                   <WorkflowButton label="Approve GO" onClick={approveMissionStart} disabled={missionStatus !== "PENDING_APPROVAL"} />
                   <WorkflowButton label="Deny NO-GO" onClick={denyMissionStart} tone="danger" />
                   <WorkflowButton label="Continue incident" onClick={continueAfterCriticalIncident} disabled={openCriticalEvents.length === 0} />
@@ -629,6 +777,18 @@ export default function DronePage() {
                     Generate AI summary
                   </button>
                 </div>
+
+                {skyTracePersistenceError && (
+                  <div className="rounded-2xl border border-red-400/45 bg-red-500/15 p-4 text-sm leading-6 text-red-50">
+                    <div className="text-xs font-black uppercase tracking-[0.18em] text-red-200">
+                      SkyTrace persistence failed
+                    </div>
+                    <p className="mt-2">{skyTracePersistenceError}</p>
+                    <p className="mt-1 text-xs text-red-100/80">
+                      No preflight event was added to the timeline.
+                    </p>
+                  </div>
+                )}
 
                 <div className="rounded-2xl border border-white/10 bg-slate-950/65 p-4">
                   <h3 className="text-sm font-black uppercase tracking-[0.18em] text-slate-300">Operational rules</h3>
@@ -654,12 +814,12 @@ export default function DronePage() {
 
           <Panel title="System event timeline" helper="Local mock event log for report-ready incident history." captureName="event-log">
             <div className="max-h-[560px] space-y-3 overflow-auto pr-1">
-              {reportReadyEvents.length === 0 ? (
+              {visibleReportReadyEvents.length === 0 ? (
                 <div className="rounded-2xl border border-white/10 bg-slate-950/65 p-4 text-sm text-slate-400">
                   Run preflight to seed the SkyTrace event log. All events are local mock records.
                 </div>
               ) : (
-                reportReadyEvents.map((event) => (
+                visibleReportReadyEvents.map((event) => (
                   <article key={event.eventId} className={`rounded-2xl border p-4 ${eventSeverityStyles[event.severity]}`}>
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <span className="text-xs font-black uppercase tracking-[0.16em]">{event.type.replaceAll("_", " ")}</span>
@@ -669,7 +829,7 @@ export default function DronePage() {
                       {typeof event.payload.message === "string" ? event.payload.message : typeof event.payload.summary === "string" ? event.payload.summary : event.eventId}
                     </div>
                     <div className="mt-3 flex flex-wrap gap-2 text-xs font-bold text-slate-300">
-                      <span>{formatTime(event.timestamp)}</span>
+                      <span>{renderMountedTime(event.timestamp)}</span>
                       <span>• {event.source}</span>
                       <span>• approval {event.requiresApproval ? "required" : "not required"}</span>
                       {event.approvedBy && <span>• {event.approvedBy}</span>}
@@ -763,7 +923,7 @@ export default function DronePage() {
                     <Metric label="Altitude" value={`${selectedDrone.altitudeFt} ft`} />
                     <Metric label="Speed" value={`${selectedDrone.speedMph} mph`} />
                     <Metric label="Payload" value={selectedDrone.payload} />
-                    <Metric label="Last ping" value={formatTime(selectedDrone.lastPing)} />
+                    <Metric label="Last ping" value={renderMountedTime(selectedDrone.lastPing)} />
                   </div>
                   <HealthBar label="Battery" value={selectedDrone.batteryPct} />
                   <HealthBar label="Signal" value={selectedDrone.signalPct} />
@@ -776,7 +936,7 @@ export default function DronePage() {
               <div className="mt-4 space-y-3">
                 {actionLogs.map((log) => (
                   <div key={log.id} className="rounded-2xl border border-white/10 bg-slate-950/70 p-3 text-sm text-slate-300">
-                    <div className="text-xs font-bold text-cyan-200">{formatTime(log.createdAt)}</div>
+                    <div className="text-xs font-bold text-cyan-200">{renderMountedTime(log.createdAt)}</div>
                     <div>{log.message}</div>
                   </div>
                 ))}
@@ -830,7 +990,7 @@ export default function DronePage() {
                     <h3 className="mt-3 text-lg font-black text-white">{alert.title}</h3>
                     <p className="mt-2 text-sm leading-6 text-slate-200">{alert.detail}</p>
                     <div className="mt-3 text-xs font-bold text-slate-300">
-                      {drone?.name ?? alert.droneId} • {formatTime(alert.createdAt)}
+                      {drone?.name ?? alert.droneId} • {renderMountedTime(alert.createdAt)}
                     </div>
                   </article>
                 );
@@ -886,7 +1046,7 @@ function WorkflowButton({
   tone = "primary",
 }: {
   label: string;
-  onClick: () => void;
+  onClick: () => void | Promise<void>;
   disabled?: boolean;
   tone?: "primary" | "danger";
 }) {

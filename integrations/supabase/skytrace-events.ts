@@ -4,9 +4,16 @@ import type { SkyTraceEvent } from "@/lib/skytrace-workflow";
 
 export const skyTraceEventsTableName = "skytrace_events";
 
+export type SkyTraceEventPersistenceRow = ReturnType<
+  typeof mapSkyTraceEventToPersistenceRow
+> & {
+  created_at: string;
+};
+
 export type SkyTraceEventPersistenceResult = {
   table: typeof skyTraceEventsTableName;
   eventId: string;
+  row: SkyTraceEventPersistenceRow;
 };
 
 export type PersistSkyTraceEventInput = {
@@ -64,14 +71,17 @@ export async function persistSkyTraceEvent(
 ): Promise<SkyTraceEventPersistenceResult> {
   const supabase = createSupabaseServerClient();
   const row = mapSkyTraceEventToPersistenceRow(input);
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from(skyTraceEventsTableName)
-    .upsert(row, { onConflict: "event_id" });
+    .upsert(row, { onConflict: "event_id" })
+    .select("*")
+    .single();
 
   if (error) throw error;
 
   return {
     table: skyTraceEventsTableName,
     eventId: input.event.eventId,
+    row: data as SkyTraceEventPersistenceRow,
   };
 }

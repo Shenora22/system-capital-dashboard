@@ -13,13 +13,33 @@ import {
 export const dynamic = "force-dynamic";
 
 const skyTraceIngestApiKeyHeader = "x-skytrace-api-key";
+const skyTraceAppRequestHeader = "x-skytrace-app-request";
+
+function isSameOriginSkyTraceAppRequest(request: Request) {
+  const origin = request.headers.get("origin");
+  const appRequest = request.headers.get(skyTraceAppRequestHeader);
+
+  if (!origin || appRequest !== "skytrace-ui") return false;
+
+  const requestUrl = new URL(request.url);
+  const forwardedHost = request.headers.get("x-forwarded-host");
+  const host = forwardedHost ?? request.headers.get("host");
+  const forwardedProto = request.headers.get("x-forwarded-proto");
+  const protocol = forwardedProto ?? requestUrl.protocol.replace(/:$/, "");
+  const allowedOrigins = new Set([requestUrl.origin]);
+
+  if (host) allowedOrigins.add(`${protocol}://${host}`);
+
+  return allowedOrigins.has(origin);
+}
 
 function isSkyTraceIngestAuthorized(request: Request) {
   const configuredApiKey = process.env.SKYTRACE_INGEST_API_KEY;
   const providedApiKey = request.headers.get(skyTraceIngestApiKeyHeader);
 
   return Boolean(
-    configuredApiKey && providedApiKey && providedApiKey === configuredApiKey,
+    (configuredApiKey && providedApiKey && providedApiKey === configuredApiKey) ||
+      isSameOriginSkyTraceAppRequest(request),
   );
 }
 
@@ -62,6 +82,7 @@ export async function POST(request: Request) {
       event,
       systemEventPreview,
       persistence,
+      row: persistence.row,
     });
   } catch (error) {
     console.error("[skytrace/events] Failed to persist event:", error);

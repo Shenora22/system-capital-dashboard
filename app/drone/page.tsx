@@ -645,6 +645,28 @@ export default function DronePage() {
     }
   }
 
+  if (!mounted) {
+    return (
+      <main data-pitch-capture="dashboard" className="min-h-screen overflow-hidden bg-[#04070d] text-slate-100">
+        <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.22),transparent_32%),radial-gradient(circle_at_80%_10%,rgba(249,115,22,0.16),transparent_28%),linear-gradient(180deg,#08111f_0%,#04070d_60%)]" />
+
+        <section className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-5 py-6 sm:px-8 lg:px-10">
+          <header data-pitch-capture="hero" className="rounded-[2rem] border border-cyan-300/15 bg-white/[0.04] p-6 shadow-2xl shadow-cyan-950/30 backdrop-blur">
+            <p className="mb-3 inline-flex rounded-full border border-cyan-300/25 bg-cyan-300/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.32em] text-cyan-200">
+              SkyTrace Mission Control
+            </p>
+            <h1 className="max-w-3xl text-4xl font-black tracking-tight text-white sm:text-5xl">
+              AI Mission Control for Autonomous Drone Operations
+            </h1>
+            <p className="mt-4 max-w-2xl text-base leading-7 text-slate-300">
+              Syncing fleet API...
+            </p>
+          </header>
+        </section>
+      </main>
+    );
+  }
+
   return (
     <main data-pitch-capture="dashboard" className="min-h-screen overflow-hidden bg-[#04070d] text-slate-100">
       <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.22),transparent_32%),radial-gradient(circle_at_80%_10%,rgba(249,115,22,0.16),transparent_28%),linear-gradient(180deg,#08111f_0%,#04070d_60%)]" />

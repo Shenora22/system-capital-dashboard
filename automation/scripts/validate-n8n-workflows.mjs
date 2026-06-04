@@ -124,6 +124,10 @@ function duplicateKeyPaths(jsonText) {
   return duplicates;
 }
 
+function nodeByName(workflow, nodeName) {
+  return (workflow.nodes ?? []).find((node) => node.name === nodeName);
+}
+
 function assertRespondNodes(workflow, fileName) {
   const respondNodes = (workflow.nodes ?? []).filter((node) => node.type === "n8n-nodes-base.respondToWebhook");
 
@@ -151,13 +155,65 @@ function assertRespondNodes(workflow, fileName) {
 function assertLeadWebhook(workflow, fileName) {
   if (workflow.name !== "System Capital - Lead Capture Production") return;
 
-  const webhook = (workflow.nodes ?? []).find((node) => node.name === "Lead Capture Webhook");
+  const webhook = nodeByName(workflow, "Lead Capture Webhook");
   if (!webhook) throw new Error(`${fileName}: Lead Capture Webhook node missing`);
   if (webhook.parameters?.path !== "system-capital-lead") {
     throw new Error(`${fileName}: n8n webhook node path must be system-capital-lead for production /webhook/system-capital-lead URL`);
   }
   if (webhook.parameters?.responseMode !== "responseNode") {
     throw new Error(`${fileName}: Lead Capture Webhook must use responseMode=responseNode`);
+  }
+}
+
+function assertSkyTraceAlertWorkflow(workflow, fileName) {
+  if (workflow.name !== "SC - SkyTrace Telegram Alert") return;
+
+  const trigger = nodeByName(workflow, "SkyTrace Event Inserted");
+  if (!trigger) throw new Error(`${fileName}: SkyTrace Event Inserted trigger missing`);
+  if (trigger.type !== "n8n-nodes-base.postgresTrigger") {
+    throw new Error(`${fileName}: SkyTrace Event Inserted must be a Postgres Trigger node`);
+  }
+  if (trigger.parameters?.schema !== "public") {
+    throw new Error(`${fileName}: SkyTrace trigger schema must be public`);
+  }
+  if (trigger.parameters?.table !== "skytrace_events" && trigger.parameters?.tableName !== "skytrace_events") {
+    throw new Error(`${fileName}: SkyTrace trigger table must be skytrace_events`);
+  }
+  const events = trigger.parameters?.events ?? [trigger.parameters?.firesOn].filter(Boolean);
+  if (!events.includes("INSERT")) {
+    throw new Error(`${fileName}: SkyTrace trigger must listen for INSERT events`);
+  }
+
+  const readInsertedRow = nodeByName(workflow, "Read Inserted Row");
+  if (!readInsertedRow?.parameters?.jsCode?.includes("skytrace_alert_eligible")) {
+    throw new Error(`${fileName}: Read Inserted Row must compute skytrace_alert_eligible`);
+  }
+
+  const condition = nodeByName(workflow, "Requires Approval Or Critical?");
+  if (!condition) throw new Error(`${fileName}: eligibility condition node missing`);
+
+  const formatter = nodeByName(workflow, "Format Operational Alert");
+  if (!formatter?.parameters?.jsCode?.includes("SkyTrace Operational Alert")) {
+    throw new Error(`${fileName}: Format Operational Alert must build the Telegram message`);
+  }
+
+  const telegram = nodeByName(workflow, "Send SkyTrace Telegram Alert");
+  if (!telegram) throw new Error(`${fileName}: Telegram alert node missing`);
+  if (telegram.type !== "n8n-nodes-base.telegram") {
+    throw new Error(`${fileName}: Send SkyTrace Telegram Alert must be a Telegram node`);
+  }
+  if (!String(telegram.parameters?.chatId ?? "").includes("SKYTRACE_ALERT_CHAT_ID")) {
+    throw new Error(`${fileName}: Telegram chatId must use SKYTRACE_ALERT_CHAT_ID`);
+  }
+
+  const deliveryLog = nodeByName(workflow, "Log Notification Delivery Result");
+  if (!deliveryLog?.parameters?.jsCode?.includes("[SKYTRACE_TELEGRAM_DELIVERY]")) {
+    throw new Error(`${fileName}: delivery log node must emit SKYTRACE_TELEGRAM_DELIVERY`);
+  }
+
+  const deliveryStatus = nodeByName(workflow, "Return Delivery Status");
+  if (!deliveryStatus?.parameters?.jsCode?.includes("delivery_status")) {
+    throw new Error(`${fileName}: Return Delivery Status node missing delivery_status output`);
   }
 }
 
@@ -176,6 +232,7 @@ function assertWorkflowShape(workflow, fileName) {
 
   assertRespondNodes(workflow, fileName);
   assertLeadWebhook(workflow, fileName);
+  assertSkyTraceAlertWorkflow(workflow, fileName);
 }
 
 let checked = 0;

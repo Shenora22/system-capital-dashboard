@@ -1,0 +1,214 @@
+{
+  "name": "SC - SkyTrace Telegram Alert",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {
+        "schema": "public",
+        "table": "skytrace_events",
+        "events": [
+          "INSERT"
+        ]
+      },
+      "id": "skytrace_event_inserted",
+      "name": "SkyTrace Event Inserted",
+      "type": "n8n-nodes-base.postgresTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        260,
+        280
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "YOUR_SUPABASE_POSTGRES_CREDENTIAL_ID",
+          "name": "System Capital Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const row = $input.first().json;\n\nconst normalizeBoolean = (value) => value === true || value === 'true' || value === 1 || value === '1';\nconst severity = String(row.severity ?? '').toLowerCase();\nconst requiresApproval = normalizeBoolean(row.requires_approval);\n\nreturn [{\n  json: {\n    ...row,\n    severity,\n    requires_approval: requiresApproval,\n    skytrace_alert_eligible: requiresApproval || severity === 'critical',\n    skytrace_alert_reason: requiresApproval ? 'requires_approval' : severity === 'critical' ? 'critical_severity' : 'not_actionable'\n  }\n}];"
+      },
+      "id": "read_inserted_row",
+      "name": "Read Inserted Row",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        520,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$json.skytrace_alert_eligible}}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "requires_approval_or_critical",
+      "name": "Requires Approval Or Critical?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        780,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const row = $input.first().json;\n\nconst asObject = (value) => {\n  if (!value) return {};\n  if (typeof value === 'object' && !Array.isArray(value)) return value;\n  if (typeof value === 'string') {\n    try {\n      const parsed = JSON.parse(value);\n      return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};\n    } catch {\n      return {};\n    }\n  }\n  return {};\n};\n\nconst payload = asObject(row.payload);\nconst systemEventPreview = asObject(row.system_event_preview);\nconst message = String(payload.message ?? payload.summary ?? systemEventPreview.notes ?? 'SkyTrace event requires operator attention.');\nconst severityLabel = String(row.severity ?? 'unknown').toUpperCase();\nconst approvalLabel = row.requires_approval ? 'yes' : 'no';\n\nconst optionalContext = [\n  payload.droneId ? `Drone ID: ${payload.droneId}` : null,\n  payload.droneName ? `Drone: ${payload.droneName}` : null,\n  payload.zone ? `Zone: ${payload.zone}` : null,\n  payload.operator ? `Operator: ${payload.operator}` : null,\n  payload.approvalFor ? `Approval for: ${payload.approvalFor}` : null\n].filter(Boolean);\n\nconst alertLines = [\n  'SkyTrace Operational Alert',\n  `Mission: ${row.mission_id}`,\n  `Event: ${row.event_type}`,\n  `Severity: ${severityLabel}`,\n  `Status: ${row.status}`,\n  `Requires approval: ${approvalLabel}`,\n  `Source: ${row.source}`,\n  `Event time: ${row.event_timestamp}`,\n  `Event ID: ${row.event_id}`,\n  ...optionalContext,\n  `Message: ${message}`\n];\n\nreturn [{\n  json: {\n    ...row,\n    payload,\n    system_event_preview: systemEventPreview,\n    skytrace_alert_message: alertLines.join('\\n'),\n    skytrace_alert_formatted_at: new Date().toISOString(),\n    skytrace_alert_channel: 'telegram'\n  }\n}];"
+      },
+      "id": "format_operational_alert",
+      "name": "Format Operational Alert",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{$env.SKYTRACE_ALERT_CHAT_ID || $env.LEAD_ALERT_CHAT_ID}}",
+        "text": "={{$json.skytrace_alert_message}}"
+      },
+      "id": "send_skytrace_telegram_alert",
+      "name": "Send SkyTrace Telegram Alert",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        160
+      ],
+      "continueOnFail": true,
+      "credentials": {
+        "telegramApi": {
+          "id": "YOUR_TELEGRAM_CREDENTIAL_ID",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const alert = $('Format Operational Alert').first().json;\nconst telegramResult = $input.first().json;\nconst failed = Boolean(telegramResult.error || telegramResult.message?.error || telegramResult.description?.toLowerCase?.().includes('error'));\nconst messageId = telegramResult.message_id ?? telegramResult.result?.message_id ?? telegramResult.message?.message_id ?? null;\n\nconst delivery = {\n  ok: !failed,\n  delivery_status: failed ? 'failed' : 'sent',\n  workflow_name: 'SC - SkyTrace Telegram Alert',\n  workflow_key: 'skytrace-telegram-alert',\n  channel: 'telegram',\n  event_id: alert.event_id,\n  mission_id: alert.mission_id,\n  event_type: alert.event_type,\n  severity: alert.severity,\n  requires_approval: alert.requires_approval,\n  telegram_message_id: messageId,\n  delivered_at: new Date().toISOString(),\n  error_message: failed ? String(telegramResult.error?.message ?? telegramResult.description ?? telegramResult.message ?? 'Telegram delivery failed') : null\n};\n\nconsole.log('[SKYTRACE_TELEGRAM_DELIVERY]', delivery);\nreturn [{ json: delivery }];"
+      },
+      "id": "log_notification_delivery_result",
+      "name": "Log Notification Delivery Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1560,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const delivery = $input.first().json;\nreturn [{\n  json: {\n    ok: delivery.ok,\n    delivery_status: delivery.delivery_status,\n    event_id: delivery.event_id,\n    mission_id: delivery.mission_id,\n    channel: delivery.channel,\n    telegram_message_id: delivery.telegram_message_id,\n    delivered_at: delivery.delivered_at,\n    error_message: delivery.error_message\n  }\n}];"
+      },
+      "id": "return_delivery_status",
+      "name": "Return Delivery Status",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1820,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const row = $input.first().json;\nconst skipped = {\n  ok: true,\n  delivery_status: 'skipped',\n  workflow_name: 'SC - SkyTrace Telegram Alert',\n  workflow_key: 'skytrace-telegram-alert',\n  channel: 'telegram',\n  event_id: row.event_id,\n  mission_id: row.mission_id,\n  event_type: row.event_type,\n  severity: row.severity,\n  requires_approval: row.requires_approval,\n  skipped_at: new Date().toISOString(),\n  reason: 'Event does not require approval and is not critical'\n};\n\nconsole.log('[SKYTRACE_TELEGRAM_SKIPPED]', skipped);\nreturn [{ json: skipped }];"
+      },
+      "id": "return_skipped_status",
+      "name": "Return Skipped Status",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        420
+      ]
+    }
+  ],
+  "connections": {
+    "SkyTrace Event Inserted": {
+      "main": [
+        [
+          {
+            "node": "Read Inserted Row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Inserted Row": {
+      "main": [
+        [
+          {
+            "node": "Requires Approval Or Critical?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Requires Approval Or Critical?": {
+      "main": [
+        [
+          {
+            "node": "Format Operational Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return Skipped Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Operational Alert": {
+      "main": [
+        [
+          {
+            "node": "Send SkyTrace Telegram Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send SkyTrace Telegram Alert": {
+      "main": [
+        [
+          {
+            "node": "Log Notification Delivery Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Notification Delivery Result": {
+      "main": [
+        [
+          {
+            "node": "Return Delivery Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}

@@ -231,7 +231,7 @@ function n8nWebhookUrl(): string | null {
 
 export async function POST(request: Request) {
   try {
-    const rawPayload: unknown = await request.json();
+    const rawPayload: unknown = await request.json().catch(() => null);
     const parsed = parseTallyLeadEnvelope(rawPayload);
     if (!parsed.success) {
       return Response.json({ success: false, message: "Invalid Tally payload" }, { status: 400 });

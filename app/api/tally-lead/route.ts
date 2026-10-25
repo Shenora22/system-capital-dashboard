@@ -1,3 +1,4 @@
+import { parseTallyLeadEnvelope } from "@/lib/lead-input-schema";
 import { logAgentEvent } from "@/logging/agentLogs";
 
 export const runtime = "nodejs";
@@ -230,7 +231,12 @@ function n8nWebhookUrl(): string | null {
 
 export async function POST(request: Request) {
   try {
-    const payload = (await request.json()) as Record<string, unknown>;
+    const rawPayload: unknown = await request.json();
+    const parsed = parseTallyLeadEnvelope(rawPayload);
+    if (!parsed.success) {
+      return Response.json({ success: false, message: "Invalid Tally payload" }, { status: 400 });
+    }
+    const payload = parsed.data;
     const lead = normalizeTallyLead(payload);
     const dryRun = new URL(request.url).searchParams.get("dryRun") === "1";
 

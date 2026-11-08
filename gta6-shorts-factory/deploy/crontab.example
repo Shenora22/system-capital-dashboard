@@ -1,0 +1,10 @@
+# Daily schedule for the GTA VI Shorts factory.
+# Install with:  crontab -e   and paste the line below (adjust the paths).
+#
+# Set the server clock to your timezone first so "18:00" means what you expect:
+#   sudo timedatectl set-timezone America/New_York
+#
+# Output goes to logs/cron.out (crash messages that happen before logging starts).
+# The detailed log is logs/factory.log.
+
+0 18 * * * cd /opt/gta6-shorts-factory && /opt/gta6-shorts-factory/.venv/bin/python main.py >> logs/cron.out 2>&1

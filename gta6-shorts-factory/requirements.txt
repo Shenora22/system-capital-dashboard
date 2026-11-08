@@ -1,0 +1,18 @@
+# GTA VI Shorts factory: Python dependencies
+# Install with: pip install -r requirements.txt   (ffmpeg must also be installed system-wide)
+
+# Video composition (MoviePy 2.x API; 1.x code will not run)
+moviepy>=2.1,<3
+
+# Twitch clip metadata and downloads, Gemini REST calls, .env loading
+requests>=2.32
+python-dotenv>=1.0
+
+# YouTube Data API v3 uploads
+google-auth>=2.30
+google-auth-oauthlib>=1.2   # only for the one-time browser login (--auth)
+google-api-python-client>=2.130
+
+# Requested in the spec. The clip downloader fetches MP4s directly over HTTP,
+# because streamlink is built for live streams and VODs. Safe to remove.
+streamlink>=6.0

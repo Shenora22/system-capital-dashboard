@@ -13,3 +13,6 @@ logs/
 .venv/
 __pycache__/
 *.pyc
+
+# MoviePy writes temporary audio next to the output
+*TEMP_MPY*

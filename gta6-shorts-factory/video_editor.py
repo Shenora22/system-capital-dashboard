@@ -211,6 +211,9 @@ def build_short(clips: list[tuple[Path, str]], hook: str, output_path: Path) -> 
             preset=config.RENDER_PRESET,
             threads=config.RENDER_THREADS,
             ffmpeg_params=["-pix_fmt", "yuv420p", "-movflags", "+faststart"],
+            # MoviePy writes its temporary audio track next to the output by default
+            # (the project folder when run from there). Keep it beside the output instead.
+            temp_audiofile_path=str(output_path.parent),
             logger=None,  # keeps cron logs readable; the log lines above say what happened
         )
     finally:

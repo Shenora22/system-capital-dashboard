@@ -43,6 +43,8 @@ Rules:
   accurately describe what the clips show. Do not invent events, quotes, stats or
   claims. Do not use the words "leaked", "official", "real footage" or "confirmed".
   At most one emoji, and no ALL-CAPS words except acronyms such as GTA.
+- Write the title, hook and description in English, even when the clip titles are in
+  another language. Translate the meaning. Do not copy the original title.
 - hook: 2 to 5 words shown on screen for the first 3 seconds. Punchy, accurate.
 - description: 2 or 3 short sentences describing what happens. No links.
 - hashtags: 5 to 8 relevant hashtags with no spaces. Include #GTA6 and #Shorts.
@@ -159,7 +161,8 @@ def _fallback(clips: list[Clip]) -> ShortMetadata:
     """Template metadata used when Gemini is unavailable. Accurate, just less punchy."""
     top = clips[0]
     hashtags = ["#GTA6", "#Shorts", "#GTA"]
-    title = f"GTA 6 moment: {top.title}"[:MAX_TITLE_CHARS]
+    # Original clip titles can be in any language, so don't copy them into the title.
+    title = f"Best GTA 6 community clips today, featuring @{top.creator_name}"[:MAX_TITLE_CHARS]
     body = (
         f"Top GTA VI community clips from the last 24 hours, featuring "
         f"{', '.join('@' + c.creator_name for c in clips[:3])}."

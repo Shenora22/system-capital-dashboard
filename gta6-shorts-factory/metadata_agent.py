@@ -27,7 +27,7 @@ log = logging.getLogger(__name__)
 
 GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 HTTP_TIMEOUT = 45
-MAX_ATTEMPTS = 3
+MAX_ATTEMPTS = 6  # 503 "high demand" errors are common and usually clear within a minute
 MAX_TITLE_CHARS = 100  # YouTube's hard limit
 MAX_DESCRIPTION_CHARS = 4900  # YouTube's limit is 5000 bytes; leave headroom
 MAX_HASHTAGS = 8
@@ -89,7 +89,7 @@ def _call_gemini(prompt: str) -> str:
         resp = requests.post(url, headers=headers, json=body, timeout=HTTP_TIMEOUT)
         if resp.status_code == 429 or resp.status_code >= 500:
             if attempt < MAX_ATTEMPTS:
-                wait = 2**attempt
+                wait = min(2**attempt, 30)
                 log.warning("Gemini returned %s; retrying in %ss", resp.status_code, wait)
                 time.sleep(wait)
                 continue

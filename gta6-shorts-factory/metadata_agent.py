@@ -26,7 +26,7 @@ from twitch_downloader import Clip
 log = logging.getLogger(__name__)
 
 GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
-HTTP_TIMEOUT = 45
+HTTP_TIMEOUT = 90  # Gemini sometimes takes over 45s under load
 MAX_ATTEMPTS = 6  # 503 "high demand" errors are common and usually clear within a minute
 MAX_TITLE_CHARS = 100  # YouTube's hard limit
 MAX_DESCRIPTION_CHARS = 4900  # YouTube's limit is 5000 bytes; leave headroom

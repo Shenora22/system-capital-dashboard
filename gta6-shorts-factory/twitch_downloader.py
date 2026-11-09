@@ -14,7 +14,8 @@ Run it on its own to test the download step:
 from __future__ import annotations
 
 import logging
-import re
+import subprocess
+import sys
 import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -49,20 +50,6 @@ class Clip:
     view_count: int
     duration: float
     created_at: str
-
-    @property
-    def media_url(self) -> str:
-        """
-        Direct MP4 URL for the clip.
-
-        Twitch stores each clip's MP4 next to its preview image:
-            .../SLUG-preview-480x272.jpg  ->  .../SLUG.mp4
-
-        This URL pattern is not part of the documented API. It has been stable for
-        years, but if downloads start failing, this is the one function to update.
-        """
-        base = re.sub(r"-preview-\d+x\d+\.(?:jpg|png)$", "", self.thumbnail_url)
-        return f"{base}.mp4"
 
 
 class TwitchClient:
@@ -173,19 +160,49 @@ class TwitchClient:
         return clips
 
     def download(self, clip: Clip, dest_dir: Path) -> Path:
-        """Stream a clip's MP4 to disk and return the local path."""
-        dest_dir.mkdir(parents=True, exist_ok=True)
-        dest = dest_dir / f"{clip.id}.mp4"
+        """
+        Download the clip's video with yt-dlp, which knows how to fetch Twitch clips
+        reliably, and return the path of the MP4 it saved.
 
-        with self._session.get(clip.media_url, stream=True, timeout=60) as resp:
-            resp.raise_for_status()
-            with dest.open("wb") as fh:
-                for chunk in resp.iter_content(chunk_size=256 * 1024):
-                    fh.write(chunk)
+        Guessing the MP4 URL from the thumbnail (what this file did before) breaks
+        when Twitch changes its CDN, so we don't do that any more.
+        """
+        dest_dir.mkdir(parents=True, exist_ok=True)
+        template = str(dest_dir / f"{clip.id}.%(ext)s")
+        cmd = [
+            sys.executable, "-m", "yt_dlp",
+            "--no-playlist", "--quiet", "--no-warnings",
+            "--merge-output-format", "mp4",
+            "-o", template,
+            clip.url,
+        ]
+        try:
+            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+        except subprocess.TimeoutExpired as exc:
+            raise TwitchError(f"yt-dlp timed out downloading clip {clip.id}") from exc
+
+        if proc.returncode != 0:
+            raise TwitchError(f"yt-dlp failed for clip {clip.id}: {proc.stderr.strip()[-300:]}")
+
+        files = [p for p in dest_dir.glob(f"{clip.id}.*") if p.suffix != ".part"]
+        if not files:
+            raise TwitchError(f"yt-dlp finished but no file was saved for clip {clip.id}")
+        dest = files[0]
 
         if dest.stat().st_size < MIN_VALID_MP4_BYTES:
             dest.unlink(missing_ok=True)
             raise TwitchError(f"Clip {clip.id} downloaded as a tiny file; probably not a video")
+
+        # Make sure the file really holds video before the editor relies on it.
+        from moviepy import VideoFileClip  # local import keeps module import light
+
+        try:
+            with VideoFileClip(str(dest)) as probe:
+                if probe.duration < 1 or probe.w < 16:
+                    raise TwitchError(f"Clip {clip.id} has no usable video stream")
+        except OSError as exc:
+            dest.unlink(missing_ok=True)
+            raise TwitchError(f"Clip {clip.id} is not a readable video: {exc}") from exc
         return dest
 
 
